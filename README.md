@@ -11,6 +11,7 @@ grasp-prediction/
 ├── data/                          # ACRONYM dataset (not in repo)
 │   ├── meshes/                    # 3D object meshes
 │   └── grasps/                    # Grasp annotations (.h5 files)
+├── data_filtered/                 # Subset for testing (not in repo)
 ├── model/
 │   ├── net.py                     # PointNet model architecture
 │   ├── data_loader.py             # GraspDataset class
@@ -18,10 +19,15 @@ grasp-prediction/
 │   └── base_model/
 │       └── params.json            # Hyperparameters
 ├── train.py                       # Training script
-├── evaluate.py                    # Evaluation script  
+├── evaluate.py                    # Evaluation script
 ├── utils.py                       # Helper functions
+├── check_dataset.py               # Dataset verification
+├── filter_dataset.py              # Create filtered subset
 ├── requirements.txt               # Dependencies
-└── README.md                      # This file
+├── README.md                      # This file
+├── AWS_DEPLOYMENT_GUIDE.md        # Detailed AWS setup guide
+├── QUICK_REFERENCE.md             # One-page command reference
+└── DATASET.md                     # Dataset download instructions
 ```
 
 ## Setup
@@ -81,10 +87,11 @@ python train.py --data_dir data --model_dir experiments/base_model
 
 Training logs and checkpoints will be saved to `experiments/base_model/`.
 
-**Monitor training with TensorBoard:**
-```bash
-tensorboard --logdir experiments/base_model/tensorboard
-```
+Training generates:
+- `best.pth.tar` - Best model checkpoint
+- `training_curves.png` - Loss and accuracy plots
+- `metrics_curves.png` - ROC-AUC and AP plots
+- `train.log` - Full training log
 
 ### Evaluation
 
@@ -121,6 +128,29 @@ Key parameters:
 - `batch_size`: Adjust based on GPU memory
 - `split_by`: "object" for cross-category testing, "grasp" for balanced splits
 - `num_workers`: Set to 0 on Colab, 4+ on clusters
+
+## AWS Deployment
+
+For detailed instructions on deploying and running training on AWS:
+- See [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) for step-by-step setup
+- See [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for quick command reference
+- See [DATASET.md](DATASET.md) for dataset download instructions
+
+**Quick start on AWS:**
+```bash
+# SSH into AWS
+ssh -i ~/.ssh/cs230-final-key.pem ec2-user@<your-aws-ip>
+
+# Setup (first time only)
+git clone <your-repo-url> grasp-prediction
+cd grasp-prediction
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Run training
+python train.py --data_dir data --model_dir experiments/my_model
+```
 
 ## Running on Stanford Clusters
 
