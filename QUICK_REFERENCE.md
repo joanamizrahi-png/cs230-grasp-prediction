@@ -232,11 +232,11 @@ source .venv/bin/activate
 pip install gdown
 gdown https://drive.google.com/uc?id=1OjykLD9YmnFdfYpH2qO8yBo-I-22vKwu -O acronym.tar.gz
 tar -xzf acronym.tar.gz
-mv acronym/grasps/*.h5 data/grasps/
+mv grasps/*.h5 data/grasps/
 
 # 3. Get ShapeNet meshes
-# Register at https://shapenet.org/
-# Download ShapeNetSem dataset (~51 GB)
+# Download from HuggingFace: https://huggingface.co/datasets/ShapeNet/ShapeNetSem
+# ShapeNetSem v0 (~12.2 GB)
 # Extract and move: mv ShapeNetSem/models/* data/meshes/
 
 # 4. Verify

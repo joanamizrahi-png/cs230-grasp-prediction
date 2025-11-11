@@ -57,14 +57,10 @@ def train(model, optimizer, loss_fn, dataloader, metrics, params, pos_weight):
             output = model(points, grasp)
             loss = loss_fn(output, labels, pos_weight)
 
-            # Clear previous gradients, compute gradients of all variables wrt loss
             optimizer.zero_grad()
             loss.backward()
-
-            # Performs updates using calculated gradients
             optimizer.step()
 
-            # Evaluate summaries only once in a while
             if i % params.save_summary_steps == 0:
                 # Compute all metrics on this batch
                 summary_batch = {metric: metrics[metric](output, labels)
@@ -179,8 +175,7 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
 
     best_val_ap = 0.0
 
-    # Compute pos_weight for handling class imbalance
-    # Assuming ~15% success rate as mentioned in proposal
+    # Handle class imbalance (85% failure, 15% success)
     pos_weight = torch.tensor([85.0 / 15.0]).to(params.device)
 
     # Track metrics for plotting
@@ -198,13 +193,9 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     for epoch in range(params.num_epochs):
-        # Run one epoch
         logging.info(f"Epoch {epoch + 1}/{params.num_epochs}")
 
-        # Compute number of batches in one epoch (one full pass over the training set)
         train_metrics = train(model, optimizer, loss_fn, train_dataloader, metrics, params, pos_weight)
-        
-        # Evaluate for one epoch on validation set
         val_metrics = evaluate(model, loss_fn, val_dataloader, metrics, params, pos_weight)
 
         val_ap = val_metrics['avg_precision']

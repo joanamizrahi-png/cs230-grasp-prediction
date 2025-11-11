@@ -260,7 +260,6 @@ class GraspDataset(Dataset):
         )
         points = points[keep_indices]
         
-        # Pad back to num_points if needed
         if len(points) < self.num_points:
             padding_size = self.num_points - len(points)
             padding = points[np.random.choice(len(points), padding_size)]
@@ -281,10 +280,9 @@ class GraspDataset(Dataset):
                 - grasp: (13,) grasp parameters [position(3), rotation_flat(9), width(1)]
                 - label: scalar binary label
         """
-        # Get sample data
         mesh_path, grasp_data, label = self.samples[idx]
-        
-        # Load mesh
+
+
         try:
             mesh = trimesh.load(mesh_path, force='mesh')
         except Exception as e:
@@ -297,22 +295,16 @@ class GraspDataset(Dataset):
                 'label': torch.tensor(label, dtype=torch.float32)
             }
         
-        # Sample point cloud from mesh
         points = self._sample_point_cloud(mesh)
-        
-        # Normalize point cloud
         points = self._normalize_point_cloud(points)
-        
-        # Apply augmentation if enabled
+
         if self.augment:
             points = self._augment_point_cloud(points)
-        
-        # Prepare grasp parameters
+
         position = grasp_data['position'].astype(np.float32)
         rotation = grasp_data['rotation'].astype(np.float32)
         width = np.array([grasp_data['width']], dtype=np.float32)
-        
-        # Flatten rotation matrix and concatenate
+
         grasp = np.concatenate([position, rotation.flatten(), width])
         
         return {

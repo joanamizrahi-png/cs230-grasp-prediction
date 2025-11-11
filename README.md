@@ -25,8 +25,6 @@ grasp-prediction/
 ├── filter_dataset.py              # Create filtered subset
 ├── requirements.txt               # Dependencies
 ├── README.md                      # This file
-├── AWS_DEPLOYMENT_GUIDE.md        # Detailed AWS setup guide
-├── QUICK_REFERENCE.md             # One-page command reference
 └── DATASET.md                     # Dataset download instructions
 ```
 
@@ -131,10 +129,7 @@ Key parameters:
 
 ## AWS Deployment
 
-For detailed instructions on deploying and running training on AWS:
-- See [AWS_DEPLOYMENT_GUIDE.md](AWS_DEPLOYMENT_GUIDE.md) for step-by-step setup
-- See [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for quick command reference
-- See [DATASET.md](DATASET.md) for dataset download instructions
+See [DATASET.md](DATASET.md) for dataset download instructions
 
 **Quick start on AWS:**
 ```bash
@@ -152,51 +147,12 @@ pip install -r requirements.txt
 python train.py --data_dir data --model_dir experiments/my_model
 ```
 
-## Running on Stanford Clusters
-
-### On Sherlock
-
-1. **Setup:**
-```bash
-ssh <SUNetID>@login.sherlock.stanford.edu
-cd $GROUP_HOME
-git clone <your-repo>
-cd grasp-prediction
-```
-
-2. **Create job script** (`train_job.sh`):
-```bash
-#!/bin/bash
-#SBATCH --job-name=grasp_train
-#SBATCH --output=train_%j.out
-#SBATCH --error=train_%j.err
-#SBATCH --time=12:00:00
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-
-module load python/3.9
-module load cuda/11.8
-
-# Activate virtual environment
-source .venv/bin/activate
-
-# Train
-python train.py --data_dir $GROUP_HOME/acronym_data --model_dir experiments/base_model
-```
-
-3. **Submit:**
-```bash
-sbatch train_job.sh
-```
-
 ## Dataset Statistics (Full ACRONYM)
 
 - **Objects**: 8,872 meshes from ShapeNet
 - **Categories**: 262 object categories
 - **Grasps**: ~17.7 million labeled grasp attempts
-- **Success rate**: ~15% (class imbalance!)
+- **Success rate**: ~15% (class imbalance)
 - **Split**: 183 train, 39 val, 40 test categories (for cross-category generalization)
 
 ## Model Architecture
@@ -204,20 +160,31 @@ sbatch train_job.sh
 ### PointNet Baseline
 
 ```
-Input: (batch_size, 2048, 3) point cloud + (batch_size, 13) grasp params
+To complete
+```
 
-PointNet Encoder:
-├── Shared MLP: 3 → 64 → 128 → 1024
-├── Batch Normalization + ReLU
-└── Max Pooling → (batch_size, 1024) global feature
+### PointNet++
 
-Classifier:
-├── Concat[global_feature, grasp_params] → (batch_size, 1037)
-├── FC: 1037 → 512 → 256 → 1
-├── Batch Normalization + Dropout(0.3)
-└── Output: (batch_size, 1) logits
+```
+To add
+```
 
-Loss: Weighted BCE (pos_weight=85/15 for class imbalance)
+### Attention mechanism
+
+```
+To add
+```
+
+### Ablation studies
+
+```
+To add
+```
+
+### Grasp planning
+
+```
+To add
 ```
 
 ## Metrics
@@ -226,12 +193,7 @@ Loss: Weighted BCE (pos_weight=85/15 for class imbalance)
 - **ROC-AUC**: Discriminative ability across all thresholds
 - **Accuracy**: Simple percentage correct (can be misleading with imbalance)
 
-## Next Steps
 
-1. **PointNet++**: Hierarchical feature learning with set abstraction
-2. **Attention mechanism**: Weight points by distance to grasp center
-3. **Ablation studies**: Point density, augmentation, architecture choices
-4. **Grasp planning**: Generate and rank candidate grasps
 
 ## Team Members
 

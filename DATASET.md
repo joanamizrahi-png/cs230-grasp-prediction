@@ -10,44 +10,57 @@ This guide helps you download and organize the complete ACRONYM dataset for trai
 
 ## Step 1: Download Grasp Annotations
 
-```bash
-# Download from ACRONYM GitHub release
-wget https://github.com/NVlabs/acronym/releases/download/v0.1.0/acronym.tar.gz
+**Note**: The original GitHub release link is no longer available. Use Google Drive instead.
 
-# Extract
+```bash
+# Install gdown for Google Drive downloads
+pip install gdown
+
+# Download from Google Drive
+gdown https://drive.google.com/uc?id=1OjykLD9YmnFdfYpH2qO8yBo-I-22vKwu -O acronym.tar.gz
+
+# Extract (creates grasps/ folder directly)
 tar -xzf acronym.tar.gz
 
 # Move to data directory
 mkdir -p data/grasps
-cp acronym/grasps/*.h5 data/grasps/
+mv grasps/*.h5 data/grasps/
 
 # Cleanup
 rm acronym.tar.gz
-rm -rf acronym
+rmdir grasps
 ```
+
+**Alternative**: If the Google Drive link stops working, check the [ACRONYM GitHub repository](https://github.com/NVlabs/acronym) for updated download links.
 
 ## Step 2: Download ShapeNet Meshes
 
-ShapeNet requires registration and agreement to terms.
+ShapeNet is now available on HuggingFace.
 
-1. **Register at ShapeNet**: https://www.shapenet.org/
-2. **Download ShapeNetSem**: Request access to ShapeNetSem dataset
-3. **Extract meshes**:
+**Download from HuggingFace**
+
+1. **Visit HuggingFace**: https://huggingface.co/datasets/ShapeNet/ShapeNetSem
+2. **Download the archive**: ShapeNetSem v0 release (~12.2 GB)
+3. **Extract and organize**:
    ```bash
-   # After downloading ShapeNetSem.v0.zip
-   unzip ShapeNetSem.v0.zip
-   
+   # Download (replace URL with actual HuggingFace download link)
+   wget <huggingface-download-url> -O shapenet_sem.zip
+
+   # Extract
+   unzip shapenet_sem.zip
+
    # Organize meshes
    mkdir -p data/meshes
-   
-   # Copy relevant categories (ACRONYM uses subset of ShapeNet)
-   # The .h5 files reference paths like: meshes/Bottle/xxxxx.obj
-   # So organize as: data/meshes/Bottle/xxxxx.obj
+
+   # The extracted ShapeNetSem has category folders with numeric IDs
+   # Move them to data/meshes/
+   mv ShapeNetSem/models/* data/meshes/
    ```
+
 
 ## Step 3: Verify Dataset Structure
 
-Your `data/` directory should look like:
+The `data/` directory should look like:
 
 ```
 data/
@@ -86,10 +99,6 @@ print('Data loading successful!')
 - **ShapeNet meshes**: ~51 GB  
 - **Total**: ~53 GB
 
-**Recommendations:**
-- Use lab shared storage or cluster scratch space
-- For Sherlock: Use `$GROUP_HOME` or `$SCRATCH`
-- Compress if storing long-term: `tar -czf acronym_full.tar.gz data/`
 
 ## Alternative: Download Subset
 
@@ -131,7 +140,7 @@ This is **optional** - the original meshes work fine for our point cloud samplin
 ## Troubleshooting
 
 **"Mesh not found" errors:**
-- Check that mesh paths in .h5 files match your directory structure
+- Check that mesh paths in .h5 files match directory structure
 - Use: `h5dump -d "object/file" data/grasps/Mug_xxx.h5` to see expected path
 
 **Out of disk space:**

@@ -41,7 +41,7 @@ class PointNetEncoder(nn.Module):
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
         
-        # Max pooling for global feature (permutation invariant)
+        # Max pooling for permutation invariance
         x = torch.max(x, 2)[0]
         
         return x
@@ -126,10 +126,7 @@ def accuracy(outputs, labels):
     return correct / len(labels)
 
 
-# Maintain all metrics required in this dictionary
-# These are used in train.py and evaluate.py
+# Metrics dictionary
 metrics = {
     'accuracy': accuracy,
-    # Note: ROC-AUC and Average Precision are computed separately
-    # in evaluate.py using sklearn since they need all predictions
 }

@@ -385,37 +385,47 @@ pip install gdown
 # Download from Google Drive
 gdown https://drive.google.com/uc?id=1OjykLD9YmnFdfYpH2qO8yBo-I-22vKwu -O acronym.tar.gz
 
-# Extract
+# Extract (creates grasps/ folder directly, not acronym/grasps/)
 tar -xzf acronym.tar.gz
 
 # Move .h5 files to data/grasps/
-# (Adjust path based on extracted folder structure)
-mv acronym/grasps/*.h5 data/grasps/
+mv grasps/*.h5 data/grasps/
+
+# Cleanup
 rm acronym.tar.gz
+rmdir grasps  # Remove empty folder
 ```
 
 **Part 2: Download ShapeNetSem Meshes**
 
-ShapeNet requires registration:
+ShapeNet is now available on HuggingFace (~12.2 GB):
 
-1. **Register at ShapeNet**: Go to https://shapenet.org/
-2. **Request ShapeNetSem**: Sign up and accept terms
-3. **Download**: You'll receive a download link via email (~51 GB)
-4. **Transfer to AWS**:
-
+**Option A: Download directly on AWS (Recommended)**
 ```bash
-# Option A: Download on Mac, then upload to AWS
-# (On Mac terminal)
-scp -i ~/.ssh/cs230-final-key.pem ShapeNetSem.v0.zip ec2-user@<aws-ip>:~/grasp-prediction/
-
-# (On AWS terminal)
+# On AWS terminal
 cd ~/grasp-prediction
-unzip ShapeNetSem.v0.zip
 
-# Option B: Download directly on AWS (if you have the link)
-wget "<shapenet-download-link>" -O shapenet.zip
-unzip shapenet.zip
+# Visit HuggingFace and get the direct download link:
+# https://huggingface.co/datasets/ShapeNet/ShapeNetSem
+# Then download:
+wget "<huggingface-download-url>" -O shapenet_sem.zip
+
+# Extract
+unzip shapenet_sem.zip
 ```
+
+**Option B: Download on Mac, then upload to AWS**
+```bash
+# On Mac: Download from https://huggingface.co/datasets/ShapeNet/ShapeNetSem
+# Then upload to AWS:
+scp -i ~/.ssh/cs230-final-key.pem shapenet_sem.zip ec2-user@<aws-ip>:~/grasp-prediction/
+
+# On AWS terminal:
+cd ~/grasp-prediction
+unzip shapenet_sem.zip
+```
+
+**Note**: The HuggingFace download is ~12.2 GB (ShapeNetSem subset with 270 categories, 12,000 models). This is smaller than the full ShapeNet but contains the models needed for ACRONYM.
 
 **Part 3: Organize Meshes into Correct Structure**
 
@@ -562,6 +572,18 @@ After training completes, you'll find in `experiments/test_run/`:
 python evaluate.py --data_dir data_filtered --model_dir experiments/test_run --restore_file best
 ```
 
+**What does `--restore_file best` mean?**
+
+During training, your model saves two checkpoint files:
+- `best.pth.tar` - Model with best validation accuracy
+- `last.pth.tar` - Model from final epoch
+
+The `--restore_file best` flag tells evaluation to load `best.pth.tar` (usually better performance).
+
+You can also use:
+- `--restore_file last` - Load final epoch model
+- No flag - Defaults to loading `last.pth.tar`
+
 ### Evaluation Output
 
 This creates in `experiments/test_run/`:
@@ -596,14 +618,31 @@ Each experiment is a separate folder. Just create a new `params.json`:
 # Create new experiment directory
 mkdir -p experiments/high_learning_rate
 
-# Copy and modify params
+# Copy params from existing experiment
 cp experiments/test_run/params.json experiments/high_learning_rate/
-nano experiments/high_learning_rate/params.json
+```
 
+**Option 1: Edit with nano**
+```bash
+nano experiments/high_learning_rate/params.json
 # Modify learning_rate, batch_size, etc.
 # Save and exit (Ctrl+X, Y, Enter)
+```
 
-# Run training with new config
+**Option 2: Edit with sed (automatic)**
+```bash
+# Change split_by from "object" to "grasp"
+sed -i 's/"split_by": "object"/"split_by": "grasp"/' experiments/high_learning_rate/params.json
+
+# Change learning_rate
+sed -i 's/"learning_rate": 0.001/"learning_rate": 0.01/' experiments/high_learning_rate/params.json
+
+# Verify changes
+cat experiments/high_learning_rate/params.json
+```
+
+**Run training:**
+```bash
 python train.py --data_dir data_filtered --model_dir experiments/high_learning_rate
 ```
 
@@ -750,10 +789,28 @@ python train.py --data_dir data_filtered --model_dir experiments/test_run
 
 ### Training is very slow
 
-**Possible causes**:
-1. **No GPU**: Check with `nvidia-smi`, instance may not have GPU
-2. **Too many points**: Reduce `num_points` in params.json
-3. **Too many workers**: Reduce `num_workers` in params.json
+**Check if you're using GPU**:
+```bash
+# Method 1: Check with PyTorch
+python -c "import torch; print(f'GPU available: {torch.cuda.is_available()}'); print(f'GPU name: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else "None"}')"
+
+# Method 2: Check GPU usage
+nvidia-smi
+```
+
+If GPU is not available, you need a GPU instance (g4dn.xlarge, p3.2xlarge, etc.)
+
+**Training time estimates**:
+- Filtered data (2-3 objects), 5 epochs:
+  - GPU: ~1-5 minutes
+  - CPU: ~10-30 minutes
+- Full data (8,836 objects), 50 epochs:
+  - GPU: ~2-6 hours
+  - CPU: ~24-48 hours (not recommended!)
+
+**Other causes**:
+1. **Too many points**: Reduce `num_points` in params.json (try 512 or 1024)
+2. **Too many workers**: Reduce `num_workers` in params.json (try 2 or 4)
 
 ### Can't connect to AWS
 
