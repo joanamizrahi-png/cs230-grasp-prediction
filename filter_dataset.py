@@ -67,11 +67,11 @@ def filter_dataset(data_dir='data', output_dir='data_filtered'):
             continue
 
     print()
-    print(f"✓ Found {len(valid_grasps)} grasp files with meshes")
-    print(f"✗ Missing meshes for {len(missing_meshes)} grasp files")
+    print(f"Found {len(valid_grasps)} grasp files with meshes")
+    print(f"Missing meshes for {len(missing_meshes)} grasp files")
 
     if len(valid_grasps) == 0:
-        print("\n❌ No valid grasp-mesh pairs found!")
+        print("\nNo valid grasp-mesh pairs found")
         return
 
     # Copy valid files
@@ -101,7 +101,7 @@ def filter_dataset(data_dir='data', output_dir='data_filtered'):
 
     print()
     print("=" * 60)
-    print("✓ Filtered dataset created!")
+    print("Filtered dataset created")
     print("=" * 60)
     print(f"Location: {output_path}")
     print(f"Grasp files: {len(valid_grasps)}")

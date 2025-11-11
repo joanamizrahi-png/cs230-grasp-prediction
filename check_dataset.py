@@ -18,41 +18,41 @@ def check_dataset(data_dir='data'):
     # Check grasps directory
     grasp_dir = data_path / 'grasps'
     if not grasp_dir.exists():
-        print(f"\n❌ Grasp directory not found: {grasp_dir}")
+        print(f"\nGrasp directory not found: {grasp_dir}")
         print("   Create it with: mkdir -p data/grasps")
         return
 
     h5_files = list(grasp_dir.glob('*.h5'))
-    print(f"\n📊 Grasp files (.h5): {len(h5_files)}")
+    print(f"\nGrasp files (.h5): {len(h5_files)}")
 
     if len(h5_files) == 0:
-        print("   ⚠️  No grasp files found!")
+        print("   No grasp files found")
         print("   Download with:")
         print("   wget https://github.com/NVlabs/acronym/releases/download/v0.1.0/acronym.tar.gz")
         return
     elif len(h5_files) < 100:
-        print(f"   ⚠️  Only {len(h5_files)} files (full dataset has 8,872)")
+        print(f"   Only {len(h5_files)} files (full dataset has 8,872)")
     else:
-        print(f"   ✓ Good! ({len(h5_files)} files)")
+        print(f"   Good ({len(h5_files)} files)")
 
     # Check meshes directory
     mesh_dir = data_path / 'meshes'
     if not mesh_dir.exists():
-        print(f"\n❌ Mesh directory not found: {mesh_dir}")
+        print(f"\nMesh directory not found: {mesh_dir}")
         print("   Create it with: mkdir -p data/meshes")
         return
 
     categories = [d for d in mesh_dir.iterdir() if d.is_dir()]
-    print(f"\n📁 Mesh categories: {len(categories)}")
+    print(f"\nMesh categories: {len(categories)}")
 
     if len(categories) == 0:
-        print("   ❌ No mesh categories found!")
+        print("   No mesh categories found")
         print("   You need to download ShapeNet meshes from https://shapenet.org/")
         return
     elif len(categories) < 50:
-        print(f"   ⚠️  Only {len(categories)} categories (full dataset has 262)")
+        print(f"   Only {len(categories)} categories (full dataset has 262)")
     else:
-        print(f"   ✓ Good! ({len(categories)} categories)")
+        print(f"   Good ({len(categories)} categories)")
 
     # Count total mesh files
     total_meshes = 0
@@ -60,14 +60,14 @@ def check_dataset(data_dir='data'):
         meshes = list(cat_dir.glob('*.obj'))
         total_meshes += len(meshes)
 
-    print(f"\n🔺 Total mesh files (.obj): {total_meshes}")
+    print(f"\nTotal mesh files (.obj): {total_meshes}")
     if total_meshes < 100:
-        print(f"   ⚠️  Only {total_meshes} meshes (full dataset has 8,872)")
+        print(f"   Only {total_meshes} meshes (full dataset has 8,872)")
     else:
-        print(f"   ✓ Good! ({total_meshes} meshes)")
+        print(f"   Good ({total_meshes} meshes)")
 
     # Check a sample file to verify mesh paths
-    print(f"\n🔍 Checking mesh path consistency...")
+    print(f"\nChecking mesh path consistency...")
     if len(h5_files) > 0:
         sample_h5 = h5_files[0]
         try:
@@ -80,9 +80,9 @@ def check_dataset(data_dir='data'):
                     print(f"   Expected mesh path: {mesh_rel_path}")
 
                     if mesh_full_path.exists():
-                        print(f"   ✓ Mesh found at expected location")
+                        print(f"   Mesh found at expected location")
                     else:
-                        print(f"   ❌ Mesh NOT found at: {mesh_full_path}")
+                        print(f"   Mesh NOT found at: {mesh_full_path}")
                         print(f"   Check that your mesh directory structure matches!")
 
                 # Check grasp data
@@ -95,10 +95,10 @@ def check_dataset(data_dir='data'):
                         success_rate = (qualities > 0).mean()
                         print(f"   Success rate: {success_rate:.1%}")
         except Exception as e:
-            print(f"   ⚠️  Error reading sample file: {e}")
+            print(f"   Error reading sample file: {e}")
 
     # Dataset splits estimation
-    print(f"\n📈 Estimated dataset splits (70/15/15):")
+    print(f"\nEstimated dataset splits (70/15/15):")
     if len(h5_files) >= 3:
         n_train = int(0.7 * len(h5_files))
         n_val = int(0.15 * len(h5_files))
@@ -109,19 +109,19 @@ def check_dataset(data_dir='data'):
         print(f"   Test:  {n_test} objects")
 
         if n_val == 0 or n_test == 0:
-            print(f"   ⚠️  WARNING: Some splits will be empty!")
+            print(f"   WARNING: Some splits will be empty")
             print(f"   You need at least 7 objects for non-empty splits")
     else:
-        print(f"   ⚠️  Need at least 3 objects for proper splits")
+        print(f"   Need at least 3 objects for proper splits")
 
     # Summary
     print("\n" + "=" * 60)
     if len(h5_files) >= 8000 and total_meshes >= 8000:
-        print("✅ Full dataset appears to be properly set up!")
+        print("Full dataset appears to be properly set up")
     elif len(h5_files) >= 100 and total_meshes >= 100:
-        print("⚠️  Partial dataset detected. Good for testing!")
+        print("Partial dataset detected. Good for testing")
     else:
-        print("❌ Dataset incomplete. See messages above.")
+        print("Dataset incomplete. See messages above")
     print("=" * 60)
 
     return {

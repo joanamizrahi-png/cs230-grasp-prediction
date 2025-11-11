@@ -43,3 +43,11 @@ Thumbs.db
 *.jpg
 *.pdf
 !figures/*.png
+
+# Documentation files to keep local only
+AWS_DEPLOYMENT_GUIDE.md
+AWS_SETUP.md
+COMMANDS.md
+DATASET_DOWNLOAD.md
+QUICK_REFERENCE.md
+setup.sh
