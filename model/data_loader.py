@@ -343,7 +343,8 @@ def fetch_dataloader(types, data_dir, params):
             num_points=params.num_points,
             augment=augment,
             split=split,
-            split_by=params.split_by
+            split_by=params.split_by,
+            max_grasps_per_object=params.max_grasps_per_object if hasattr(params, 'max_grasps_per_object') else None
         )
         
         # Create dataloader
