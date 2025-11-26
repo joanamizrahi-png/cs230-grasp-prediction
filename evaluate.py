@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score
+from tqdm import tqdm
 
 import utils
 import model.net as net
@@ -41,7 +42,7 @@ def evaluate(model, loss_fn, dataloader, metrics, params, pos_weight):
     all_logits = []
 
     with torch.no_grad():
-        for batch in dataloader:
+        for batch in tqdm(dataloader, desc='Evaluating'):
             points = batch['points'].to(params.device)
             grasp = batch['grasp'].to(params.device)
             labels = batch['label'].to(params.device)
@@ -53,10 +54,10 @@ def evaluate(model, loss_fn, dataloader, metrics, params, pos_weight):
                              for metric in metrics}
             summary_batch['loss'] = loss.item()
             summ.append(summary_batch)
-            
+
             probs = torch.sigmoid(output.squeeze())
             predictions = probs > 0.5
-            
+
             all_predictions.extend(predictions.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
             all_logits.extend(probs.cpu().numpy())
