@@ -8,7 +8,7 @@ import os
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score
+from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score, confusion_matrix
 from tqdm import tqdm
 
 import utils
@@ -144,8 +144,21 @@ if __name__ == '__main__':
     # Reload weights from the saved file
     utils.load_checkpoint(os.path.join(args.model_dir, args.restore_file + '.pth.tar'), model)
 
-    # Compute pos_weight
-    pos_weight = torch.tensor([85.0 / 15.0]).to(params.device)
+    # Compute pos_weight from test data distribution
+    logging.info("Computing class distribution from test data...")
+    total_pos = 0
+    total_neg = 0
+    for batch in test_dl:
+        labels = batch['label']
+        total_pos += labels.sum().item()
+        total_neg += (labels == 0).sum().item()
+
+    pos_weight_value = total_neg / total_pos if total_pos > 0 else 1.0
+    pos_weight = torch.tensor([pos_weight_value]).to(params.device)
+
+    logging.info(f"Test set: {int(total_pos)} successes ({total_pos/(total_pos+total_neg)*100:.1f}%), "
+                 f"{int(total_neg)} failures ({total_neg/(total_pos+total_neg)*100:.1f}%)")
+    logging.info(f"Using pos_weight = {pos_weight_value:.3f}")
 
     # Evaluate
     test_metrics, predictions, labels, logits = evaluate(
@@ -158,3 +171,23 @@ if __name__ == '__main__':
     
     # Plot curves
     plot_curves(labels, logits, test_metrics, args.model_dir)
+
+    # Print confusion matrix
+    predictions_binary = np.array(predictions).astype(int)
+    labels_binary = np.array(labels).astype(int)
+    cm = confusion_matrix(labels_binary, predictions_binary)
+    tn, fp, fn, tp = cm.ravel()
+
+    print("\n" + "="*60)
+    print("CONFUSION MATRIX")
+    print("="*60)
+    print(f"True Negatives (correct failures):  {tn}")
+    print(f"False Positives (wrong successes):  {fp}")
+    print(f"False Negatives (wrong failures):   {fn}")
+    print(f"True Positives (correct successes): {tp}")
+    print(f"\nActual - Success: {np.sum(labels_binary)} ({np.mean(labels_binary)*100:.1f}%), Failure: {len(labels_binary)-np.sum(labels_binary)} ({(1-np.mean(labels_binary))*100:.1f}%)")
+    print(f"Predicted - Success: {np.sum(predictions_binary)} ({np.mean(predictions_binary)*100:.1f}%), Failure: {len(predictions_binary)-np.sum(predictions_binary)} ({(1-np.mean(predictions_binary))*100:.1f}%)")
+    print(f"\nUnique predictions: {len(np.unique(predictions_binary))}")
+    if len(np.unique(predictions_binary)) == 1:
+        print("   WARNING: Model predicts ONLY ONE CLASS!")
+    print("="*60)
