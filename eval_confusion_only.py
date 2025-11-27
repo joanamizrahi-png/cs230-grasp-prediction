@@ -111,6 +111,6 @@ if len(np.unique(predictions)) == 1:
     print(f"  WARNING: Model predicts ONLY {pred_class}!")
     print("   This confirms the model has collapsed to predicting one class.")
 else:
-    print(f"✓ Model predicts both classes")
+    print(f"Model predicts both classes")
 
 print("="*60)
