@@ -108,7 +108,7 @@ if tn + fp > 0:
 print(f"\nUnique predictions: {len(np.unique(predictions))}")
 if len(np.unique(predictions)) == 1:
     pred_class = "SUCCESS" if predictions[0] == 1 else "FAILURE"
-    print(f"⚠️  WARNING: Model predicts ONLY {pred_class}!")
+    print(f"  WARNING: Model predicts ONLY {pred_class}!")
     print("   This confirms the model has collapsed to predicting one class.")
 else:
     print(f"✓ Model predicts both classes")
