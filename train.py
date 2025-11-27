@@ -175,21 +175,14 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
 
     best_val_ap = 0.0
 
-    # Compute pos_weight from actual training data distribution
-    logging.info("Computing class distribution from training data...")
-    total_pos = 0
-    total_neg = 0
-    for batch in train_dataloader:
-        labels = batch['label']
-        total_pos += labels.sum().item()
-        total_neg += (labels == 0).sum().item()
-
-    pos_weight_value = total_neg / total_pos if total_pos > 0 else 1.0
+    # Use pos_weight based on known data distribution
+    # From training logs: ~65.6% success, 34.4% failure
+    # pos_weight = failures / successes = 34.4 / 65.6 = 0.524
+    pos_weight_value = 34.4 / 65.6
     pos_weight = torch.tensor([pos_weight_value]).to(params.device)
 
-    logging.info(f"Training set: {int(total_pos)} successes ({total_pos/(total_pos+total_neg)*100:.1f}%), "
-                 f"{int(total_neg)} failures ({total_neg/(total_pos+total_neg)*100:.1f}%)")
-    logging.info(f"Using pos_weight = {pos_weight_value:.3f} to balance classes")
+    logging.info(f"Using pos_weight = {pos_weight_value:.3f} (based on 65.6% success, 34.4% failure distribution)")
+    logging.info("This balances the loss to account for class imbalance")
 
     # Track metrics for plotting
     history = {

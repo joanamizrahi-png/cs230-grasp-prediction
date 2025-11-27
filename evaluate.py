@@ -144,21 +144,14 @@ if __name__ == '__main__':
     # Reload weights from the saved file
     utils.load_checkpoint(os.path.join(args.model_dir, args.restore_file + '.pth.tar'), model)
 
-    # Compute pos_weight from test data distribution
-    logging.info("Computing class distribution from test data...")
-    total_pos = 0
-    total_neg = 0
-    for batch in test_dl:
-        labels = batch['label']
-        total_pos += labels.sum().item()
-        total_neg += (labels == 0).sum().item()
-
-    pos_weight_value = total_neg / total_pos if total_pos > 0 else 1.0
+    # Use same pos_weight as training for consistent loss calculation
+    # From training logs: ~65.6% success, 34.4% failure
+    # pos_weight = failures / successes = 34.4 / 65.6 = 0.524
+    pos_weight_value = 34.4 / 65.6
     pos_weight = torch.tensor([pos_weight_value]).to(params.device)
 
-    logging.info(f"Test set: {int(total_pos)} successes ({total_pos/(total_pos+total_neg)*100:.1f}%), "
-                 f"{int(total_neg)} failures ({total_neg/(total_pos+total_neg)*100:.1f}%)")
-    logging.info(f"Using pos_weight = {pos_weight_value:.3f}")
+    logging.info(f"Using pos_weight = {pos_weight_value:.3f} (same as training)")
+    logging.info("Note: pos_weight only affects loss calculation, not accuracy/predictions")
 
     # Evaluate
     test_metrics, predictions, labels, logits = evaluate(
