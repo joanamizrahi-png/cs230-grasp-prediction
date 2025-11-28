@@ -45,10 +45,10 @@ Thumbs.db
 *.pdf
 !figures/*.png
 
-# Documentation files to keep local only
-AWS_DEPLOYMENT_GUIDE.md
-AWS_SETUP.md
-COMMANDS.md
-DATASET_DOWNLOAD.md
-QUICK_REFERENCE.md
+# Local-only directories and files
+docs/
+scripts/cleanup*.sh
+scripts/organize*.sh
+scripts/reorganize*.sh
+diffusion/
 setup.sh
