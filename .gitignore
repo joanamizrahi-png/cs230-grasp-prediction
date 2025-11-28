@@ -16,12 +16,13 @@ data/
 *.tar.gz
 *.zip
 
-# Experiments
+# Experiments - exclude diffusion model experiments
+experiments/DIFFUSION/
+experiments/diffusion_model/
+
+# Keep experiment results (logs, checkpoints, configs) for other experiments
+# But track them in git
 experiments/*/tensorboard/
-experiments/*/*.log
-experiments/*/*.pth.tar
-experiments/*/*.json
-!experiments/*/params.json
 
 # IDE
 .vscode/

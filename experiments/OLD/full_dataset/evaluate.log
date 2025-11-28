@@ -1,0 +1,11 @@
+2025-11-23 19:27:06,246:INFO: Creating the dataset...
+2025-11-23 20:01:50,610:INFO: - done.
+2025-11-23 20:01:50,716:INFO: Starting evaluation from best
+2025-11-23 20:43:36,580:INFO: Creating the dataset...
+2025-11-23 20:43:42,439:INFO: - done.
+2025-11-23 20:43:42,476:INFO: Starting evaluation from best
+2025-11-23 21:01:22,541:INFO: Creating the dataset...
+2025-11-23 21:33:35,474:INFO: - done.
+2025-11-23 21:33:35,646:INFO: Starting evaluation from best
+2025-11-23 22:46:38,500:INFO: - Test metrics: accuracy: 0.650 ; loss: 1.078 ; roc_auc: 0.743 ; avg_precision: 0.816
+2025-11-23 22:46:41,995:INFO: - Saved curves to experiments/full_dataset

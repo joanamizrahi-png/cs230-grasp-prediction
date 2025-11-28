@@ -1,0 +1,24 @@
+2025-11-10 09:59:30,910:INFO: Loading the datasets...
+2025-11-10 09:59:31,001:INFO: - done.
+2025-11-10 09:59:31,637:INFO: Starting training for 5 epoch(s)
+2025-11-10 09:59:31,637:INFO: Epoch 1/5
+2025-11-10 09:59:55,766:INFO: Loading the datasets...
+2025-11-10 09:59:55,875:INFO: - done.
+2025-11-10 09:59:56,930:INFO: Starting training for 5 epoch(s)
+2025-11-10 09:59:56,930:INFO: Epoch 1/5
+2025-11-10 10:00:52,381:INFO: - Train metrics: accuracy: 0.756 ; loss: 1.216
+2025-11-10 10:01:12,676:INFO: - Eval metrics: accuracy: 0.739 ; loss: 0.965 ; roc_auc: 0.657 ; avg_precision: 0.817
+2025-11-10 10:01:12,720:INFO: - Found new best Average Precision
+2025-11-10 10:01:12,720:INFO: Epoch 2/5
+2025-11-10 10:02:21,797:INFO: - Train metrics: accuracy: 0.781 ; loss: 0.873
+2025-11-10 10:02:40,900:INFO: - Eval metrics: accuracy: 0.739 ; loss: 1.318 ; roc_auc: 0.576 ; avg_precision: 0.815
+2025-11-10 10:02:40,944:INFO: Epoch 3/5
+2025-11-10 10:03:30,424:INFO: - Train metrics: accuracy: 0.786 ; loss: 0.825
+2025-11-10 10:03:49,819:INFO: - Eval metrics: accuracy: 0.739 ; loss: 1.180 ; roc_auc: 0.579 ; avg_precision: 0.809
+2025-11-10 10:03:49,876:INFO: Epoch 4/5
+2025-11-10 10:04:40,806:INFO: - Train metrics: accuracy: 0.771 ; loss: 0.864
+2025-11-10 10:04:59,927:INFO: - Eval metrics: accuracy: 0.739 ; loss: 1.180 ; roc_auc: 0.593 ; avg_precision: 0.814
+2025-11-10 10:04:59,970:INFO: Epoch 5/5
+2025-11-10 10:05:50,099:INFO: - Train metrics: accuracy: 0.787 ; loss: 0.808
+2025-11-10 10:06:09,694:INFO: - Eval metrics: accuracy: 0.739 ; loss: 1.120 ; roc_auc: 0.619 ; avg_precision: 0.823
+2025-11-10 10:06:09,760:INFO: - Found new best Average Precision

@@ -1,0 +1,9 @@
+{
+    "learning_rate": 0.001,
+    "batch_size": 32,
+    "num_epochs": 50,
+    "num_points": 512,
+    "num_workers": 2,
+    "save_summary_steps": 5,
+    "split_by": "grasp"
+}
