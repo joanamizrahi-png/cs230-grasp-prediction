@@ -21,8 +21,8 @@ class GraspDataset(Dataset):
     - Label: binary success/failure (1 or 0)
     """
     
-    def __init__(self, data_path, num_points=2048, augment=True, split='train', 
-                 split_by='object', max_grasps_per_object=None):
+    def __init__(self, data_path, num_points=2048, augment=True, split='train',
+                 split_by='object', max_grasps_per_object=None, use_precomputed=True):
         """
         Args:
             data_path: Path to ACRONYM data (should contain 'meshes/' and 'grasps/' subdirs)
@@ -31,6 +31,7 @@ class GraspDataset(Dataset):
             split: 'train', 'val', or 'test'
             split_by: 'object' (split objects) or 'grasp' (split grasps within objects)
             max_grasps_per_object: Limit grasps per object (None = use all)
+            use_precomputed: Whether to use pre-computed point clouds (much faster!)
         """
         self.data_path = data_path
         self.num_points = num_points
@@ -38,10 +39,20 @@ class GraspDataset(Dataset):
         self.split = split
         self.split_by = split_by
         self.max_grasps_per_object = max_grasps_per_object
-        
+        self.use_precomputed = use_precomputed
+
+        # Check if pre-computed point clouds are available
+        # Point clouds are organized by num_points: data/point_clouds/512pts/, data/point_clouds/2048pts/, etc.
+        self.precomputed_dir = Path(data_path) / 'point_clouds' / f'{num_points}pts'
+        if self.use_precomputed and not self.precomputed_dir.exists():
+            print(f"Warning: Pre-computed point clouds not found at {self.precomputed_dir}")
+            print("Falling back to loading meshes on-the-fly (slower)")
+            print(f"To speed up training, run: python precompute_point_clouds.py --num_points {num_points}")
+            self.use_precomputed = False
+
         # Load dataset samples
         self.samples = self._load_samples()
-        
+
         print(f'{split} dataset: {len(self.samples)} samples')
         
     def _load_samples(self):
@@ -273,7 +284,7 @@ class GraspDataset(Dataset):
     def __getitem__(self, idx):
         """
         Load a single sample.
-        
+
         Returns:
             dict with:
                 - points: (num_points, 3) point cloud
@@ -282,11 +293,29 @@ class GraspDataset(Dataset):
         """
         mesh_path, grasp_data, label = self.samples[idx]
 
-
+        # Load point cloud (either pre-computed or from mesh)
         try:
-            mesh = trimesh.load(mesh_path, force='mesh')
+            if self.use_precomputed:
+                # Load pre-computed point cloud (FAST!)
+                mesh_path_obj = Path(mesh_path)
+                rel_path = mesh_path_obj.relative_to(self.data_path)
+                pc_path = self.precomputed_dir / rel_path.with_suffix('.npy')
+
+                if pc_path.exists():
+                    points = np.load(pc_path)
+                else:
+                    # Fallback to loading mesh if pre-computed not found
+                    mesh = trimesh.load(mesh_path, force='mesh')
+                    points = self._sample_point_cloud(mesh)
+                    points = self._normalize_point_cloud(points)
+            else:
+                # Load from mesh (SLOW - only for backward compatibility)
+                mesh = trimesh.load(mesh_path, force='mesh')
+                points = self._sample_point_cloud(mesh)
+                points = self._normalize_point_cloud(points)
+
         except Exception as e:
-            print(f"Error loading mesh {mesh_path}: {e}")
+            print(f"Error loading point cloud from {mesh_path}: {e}")
             points = np.zeros((self.num_points, 3), dtype=np.float32)
             grasp = np.zeros(13, dtype=np.float32)
             return {
@@ -294,10 +323,8 @@ class GraspDataset(Dataset):
                 'grasp': torch.from_numpy(grasp),
                 'label': torch.tensor(label, dtype=torch.float32)
             }
-        
-        points = self._sample_point_cloud(mesh)
-        points = self._normalize_point_cloud(points)
 
+        # Apply augmentation (still fast - just rotation/noise)
         if self.augment:
             points = self._augment_point_cloud(points)
 
@@ -306,7 +333,7 @@ class GraspDataset(Dataset):
         width = np.array([grasp_data['width']], dtype=np.float32)
 
         grasp = np.concatenate([position, rotation.flatten(), width])
-        
+
         return {
             'points': torch.from_numpy(points.astype(np.float32)),
             'grasp': torch.from_numpy(grasp),
@@ -344,7 +371,8 @@ def fetch_dataloader(types, data_dir, params):
             augment=augment,
             split=split,
             split_by=params.split_by,
-            max_grasps_per_object=params.max_grasps_per_object if hasattr(params, 'max_grasps_per_object') else None
+            max_grasps_per_object=params.max_grasps_per_object if hasattr(params, 'max_grasps_per_object') else None,
+            use_precomputed=params.use_precomputed if hasattr(params, 'use_precomputed') else True
         )
         
         # Create dataloader
