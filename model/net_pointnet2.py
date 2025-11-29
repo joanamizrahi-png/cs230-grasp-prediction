@@ -8,17 +8,14 @@ import torch.nn.functional as F
 
 def square_distance(src, dst):
     """
-    Calculates the squared Euclidean distance between two point clouds.
+    Optimized version using torch.cdist
     src: [B, N, C]
     dst: [B, M, C]
-    Returns: [B, N, M]
     """
-    B, N, _ = src.shape
-    _, M, _ = dst.shape
-    dist = -2 * torch.matmul(src, dst.permute(0, 2, 1))
-    dist += torch.sum(src ** 2, -1).view(B, N, 1)
-    dist += torch.sum(dst ** 2, -1).view(B, 1, M)
-    return dist
+    # torch.cdist calculs the Euclidienne distance (p=2)
+    # On met au carré le résultat pour obtenir la "squared distance"
+    # attendue par le reste du code (query_ball_point).
+    return torch.cdist(src, dst, p=2.0).pow(2)
 
 def index_points(points, idx):
     """
