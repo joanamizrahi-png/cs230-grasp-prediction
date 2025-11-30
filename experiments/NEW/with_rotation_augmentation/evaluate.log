@@ -1,0 +1,7 @@
+2025-11-30 04:58:28,235:INFO: Creating the dataset...
+2025-11-30 04:58:31,858:INFO: - done.
+2025-11-30 04:58:32,034:INFO: Starting evaluation from best
+2025-11-30 04:58:32,054:INFO: Using pos_weight = 0.524 (same as training)
+2025-11-30 04:58:32,054:INFO: Note: pos_weight only affects loss calculation, not accuracy/predictions
+2025-11-30 04:58:43,084:INFO: - Test metrics: accuracy: 0.729 ; loss: 0.391 ; roc_auc: 0.795 ; avg_precision: 0.864
+2025-11-30 04:58:44,083:INFO: - Saved curves to experiments/NEW/with_rotation_augmentation

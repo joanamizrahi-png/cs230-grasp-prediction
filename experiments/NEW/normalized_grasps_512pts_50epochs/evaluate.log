@@ -1,0 +1,14 @@
+2025-11-29 23:49:47,507:INFO: Creating the dataset...
+2025-11-29 23:49:54,777:INFO: - done.
+2025-11-29 23:49:54,952:INFO: Starting evaluation from best
+2025-11-29 23:49:54,972:INFO: Using pos_weight = 0.524 (same as training)
+2025-11-29 23:49:54,973:INFO: Note: pos_weight only affects loss calculation, not accuracy/predictions
+2025-11-29 23:50:05,453:INFO: - Test metrics: accuracy: 0.718 ; loss: 0.392 ; roc_auc: 0.796 ; avg_precision: 0.865
+2025-11-29 23:50:06,445:INFO: - Saved curves to experiments/NEW/normalized_grasps_512pts_50epochs
+2025-11-30 03:31:49,743:INFO: Creating the dataset...
+2025-11-30 03:31:53,377:INFO: - done.
+2025-11-30 03:31:53,551:INFO: Starting evaluation from best
+2025-11-30 03:31:53,571:INFO: Using pos_weight = 0.524 (same as training)
+2025-11-30 03:31:53,571:INFO: Note: pos_weight only affects loss calculation, not accuracy/predictions
+2025-11-30 03:32:03,877:INFO: - Test metrics: accuracy: 0.707 ; loss: 0.436 ; roc_auc: 0.776 ; avg_precision: 0.852
+2025-11-30 03:32:04,872:INFO: - Saved curves to experiments/NEW/normalized_grasps_512pts_50epochs
