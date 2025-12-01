@@ -63,8 +63,9 @@ class PointNetEncoder(nn.Module):
             # Weighted average pooling (grasp-aware local feature)
             x_weighted = (x * w).sum(dim=2)  # (B, output_dim)
 
-            # Combine global and local features
-            x = x_max + x_weighted
+            # Combine global and local features with balanced weighting
+            # This keeps the same magnitude as baseline (just max pooling)
+            x = 0.5 * x_max + 0.5 * x_weighted
         else:
             x = x_max
         
@@ -88,16 +89,19 @@ class GraspSuccessPredictor(nn.Module):
         hidden_dim=512,
         use_grasp_attention=True,
         attention_sigma=0.05,
+        use_grasp_centered_coords=False,
     ):
         super(GraspSuccessPredictor, self).__init__()
-        
+
         # Point cloud encoder
         self.point_encoder = PointNetEncoder(input_dim=point_dim, output_dim=1024)
-        
+
         # Grasp-aware attention settings
         self.use_grasp_attention = use_grasp_attention
         # bandwidth of distance weighting (same units as your point cloud)
         self.attention_sigma = attention_sigma
+        # whether to use grasp-centered coordinates (may lose global context)
+        self.use_grasp_centered_coords = use_grasp_centered_coords
         
         # Fully connected layers for combining features
         self.fc1 = nn.Linear(1024 + grasp_dim, hidden_dim)
@@ -127,19 +131,25 @@ class GraspSuccessPredictor(nn.Module):
             # ----- Grasp-aware preprocessing -----
             # Grasp center
             grasp_center = grasp[:, :3]
-            
-            # Express points in a grasp-centered frame: (B, N, 3)
+
+            # Compute distance from each point to grasp center: (B, N)
             points_rel = points - grasp_center.unsqueeze(1)
-            
-            # Distance from each point to grasp center: (B, N)
             dists = torch.norm(points_rel, dim=2)
-            
+
             # Grasp-aware radial weights (Gaussian in distance)
             sigma = self.attention_sigma
             weights = torch.exp(- (dists ** 2) / (2 * sigma ** 2))  # (B, N)
-            
+
+            # Choose coordinate frame
+            if self.use_grasp_centered_coords:
+                # Use grasp-centered coordinates (original implementation)
+                input_points = points_rel
+            else:
+                # Keep original object-centered coordinates (preserves global context)
+                input_points = points
+
             # Encode point cloud with grasp-aware weights
-            point_features = self.point_encoder(points_rel, weights=weights)
+            point_features = self.point_encoder(input_points, weights=weights)
         else:
             # Original behavior: no grasp-aware weighting, points in original frame
             point_features = self.point_encoder(points, weights=None)
