@@ -321,23 +321,19 @@ class GraspDataset(Dataset):
                     centroid = data['centroid']
                     max_dist = data['max_dist']
                 else:
-                    # Try old .npy format (backward compatibility)
+                    # Check if old .npy format exists
                     pc_path_old = self.precomputed_dir / rel_path.with_suffix('.npy')
                     if pc_path_old.exists():
-                        points = np.load(pc_path_old)
-                        # No normalization params available - grasps won't be normalized
-                        print(f"Warning: Using old .npy format without normalization params for {mesh_path}")
+                        raise RuntimeError(
+                            f"Found old .npy format without normalization params: {pc_path_old}\n"
+                            f"Please re-run: python precompute_point_clouds.py --num_points {self.num_points}\n"
+                            f"This will generate .npz files with centroid/max_dist for proper grasp normalization."
+                        )
                     else:
-                        # Fallback to loading mesh if pre-computed not found
-                        mesh = trimesh.load(mesh_path, force='mesh')
-                        sampled_points = self._sample_point_cloud(mesh)
-                        centroid = np.mean(sampled_points, axis=0)
-                        centered = sampled_points - centroid
-                        max_dist = np.max(np.abs(centered))
-                        if max_dist > 0:
-                            points = centered / max_dist
-                        else:
-                            points = centered
+                        raise FileNotFoundError(
+                            f"No precomputed point cloud found at {pc_path}\n"
+                            f"Please run: python precompute_point_clouds.py --num_points {self.num_points}"
+                        )
             else:
                 # Load from mesh (SLOW - only for backward compatibility)
                 mesh = trimesh.load(mesh_path, force='mesh')
