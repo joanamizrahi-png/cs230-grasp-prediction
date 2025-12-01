@@ -34,6 +34,11 @@ def normalize_point_cloud(points):
 
     This normalization is important for neural network training stability.
     Centers the point cloud at origin and scales to fit in unit cube.
+
+    Returns:
+        normalized_points: Normalized point cloud
+        centroid: Center of point cloud (for denormalization)
+        max_dist: Maximum distance from center (for denormalization)
     """
     centroid = np.mean(points, axis=0)
     points = points - centroid
@@ -42,7 +47,7 @@ def normalize_point_cloud(points):
     if max_dist > 0:
         points = points / max_dist
 
-    return points
+    return points, centroid, max_dist
 
 
 def precompute_point_clouds(data_path, num_points, output_dir, no_normalize=False):
@@ -98,7 +103,10 @@ def precompute_point_clouds(data_path, num_points, output_dir, no_normalize=Fals
 
                 # Create output path (maintain directory structure)
                 rel_path = mesh_path.relative_to(data_path)
-                output_path = output_dir / rel_path.with_suffix('.npy')
+                if no_normalize:
+                    output_path = output_dir / rel_path.with_suffix('.npy')
+                else:
+                    output_path = output_dir / rel_path.with_suffix('.npz')
 
                 # Skip if output already exists
                 if output_path.exists():
@@ -113,11 +121,19 @@ def precompute_point_clouds(data_path, num_points, output_dir, no_normalize=Fals
 
                 # Optionally normalize for neural network training
                 if not no_normalize:
-                    points = normalize_point_cloud(points)
+                    points, centroid, max_dist = normalize_point_cloud(points)
 
-                # Save point cloud
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                np.save(output_path, points.astype(np.float32))
+                    # Save point cloud AND normalization parameters
+                    # This allows us to normalize grasps consistently
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    np.savez(output_path.with_suffix('.npz'),
+                             points=points.astype(np.float32),
+                             centroid=centroid.astype(np.float32),
+                             max_dist=np.float32(max_dist))
+                else:
+                    # Save point cloud only (no normalization)
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    np.save(output_path, points.astype(np.float32))
 
                 processed_meshes.add(str(mesh_path))
 
