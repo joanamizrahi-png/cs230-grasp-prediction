@@ -168,10 +168,13 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
         restore_file: (string) optional- name of file to restore from (without its extension .pth.tar)
     """
     # Reload weights from restore_file if specified
+    start_epoch = 0
     if restore_file is not None:
         restore_path = os.path.join(model_dir, restore_file + '.pth.tar')
         logging.info(f"Restoring parameters from {restore_path}")
-        utils.load_checkpoint(restore_path, model, optimizer)
+        checkpoint = utils.load_checkpoint(restore_path, model, optimizer)
+        start_epoch = checkpoint.get('epoch', 0)
+        logging.info(f"Resuming from epoch {start_epoch + 1}")
 
     best_val_ap = 0.0
 
@@ -198,7 +201,7 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
     # Learning rate scheduler
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
-    for epoch in range(params.num_epochs):
+    for epoch in range(start_epoch, params.num_epochs):
         logging.info(f"Epoch {epoch + 1}/{params.num_epochs}")
 
         train_metrics = train(model, optimizer, loss_fn, train_dataloader, metrics, params, pos_weight)

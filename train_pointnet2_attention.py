@@ -1,5 +1,5 @@
 """
-Training script for Grasp Prediction with PointNet++
+Training script for Grasp Prediction with PointNet++ and Grasp Attention
 """
 
 import argparse
@@ -12,12 +12,15 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 import utils
-from model.net_pointnet2 import PointNet2Grasp
-import model.data_loader as data_loader 
+import model.net_pointnet2_attention as net
+import model.data_loader as data_loader
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', default='data', help="Directory containing the dataset")
-parser.add_argument('--model_dir', default='experiments/base_model', help="Directory containing params.json")
+parser.add_argument('--data_dir', default='data',
+                    help="Directory containing the dataset")
+parser.add_argument('--model_dir', default='experiments/pointnet2_attention',
+                    help="Directory containing params.json")
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before training")
 
@@ -332,13 +335,25 @@ if __name__ == '__main__':
     logging.info("- done.")
 
     # Define the model and optimizer
-    model = PointNet2Grasp(normal_channel=False).to(params.device)
+    # Configuration from params.json
+    attention_sigma = getattr(params, 'attention_sigma', 0.15)
+    use_grasp_centered_coords = getattr(params, 'use_grasp_centered_coords', False)
+
+    model = net.PointNet2GraspAttention(
+        normal_channel=False,
+        use_grasp_attention=True,
+        attention_sigma=attention_sigma,
+        use_grasp_centered_coords=use_grasp_centered_coords
+    ).to(params.device)
+
+    logging.info(f"Using PointNet++ with grasp-aware attention (sigma={attention_sigma})")
+    logging.info(f"Using grasp-centered coordinates: {use_grasp_centered_coords}")
+
     optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
 
     # Fetch loss function and metrics
-    from model import net_pointnet2
-    loss_fn = net_pointnet2.loss_fn
-    metrics = net_pointnet2.metrics
+    loss_fn = net.loss_fn
+    metrics = net.metrics
 
     # Train the model
     logging.info("Starting training for {} epoch(s)".format(params.num_epochs))

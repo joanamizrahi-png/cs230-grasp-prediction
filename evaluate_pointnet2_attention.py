@@ -1,5 +1,5 @@
 """
-Evaluate the model on the test set
+Evaluate the PointNet++ with Grasp Attention model on the test set
 """
 
 import argparse
@@ -12,12 +12,12 @@ from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, av
 from tqdm import tqdm
 
 import utils
-from model.net_pointnet2 import PointNet2Grasp
+import model.net_pointnet2_attention as net
 import model.data_loader as data_loader
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', default='data', help="Directory containing the dataset")
-parser.add_argument('--model_dir', default='experiments/base_model', help="Directory containing params.json")
+parser.add_argument('--model_dir', default='experiments/pointnet2_attention', help="Directory containing params.json")
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir containing weights to load")
 
 def evaluate(model, loss_fn, dataloader, metrics, params, pos_weight):
@@ -133,12 +133,19 @@ if __name__ == '__main__':
     logging.info("- done.")
 
     # Define the model
-    model = PointNet2Grasp(normal_channel=False).to(params.device)
+    attention_sigma = getattr(params, 'attention_sigma', 0.15)
+    use_grasp_centered_coords = getattr(params, 'use_grasp_centered_coords', False)
+
+    model = net.PointNet2GraspAttention(
+        normal_channel=False,
+        use_grasp_attention=True,
+        attention_sigma=attention_sigma,
+        use_grasp_centered_coords=use_grasp_centered_coords
+    ).to(params.device)
 
     # Fetch loss function and metrics
-    from model import net_pointnet2
-    loss_fn = net_pointnet2.loss_fn
-    metrics = net_pointnet2.metrics
+    loss_fn = net.loss_fn
+    metrics = net.metrics
 
     # Use pos_weight based on known data distribution
     pos_weight_value = 34.4 / 65.6
