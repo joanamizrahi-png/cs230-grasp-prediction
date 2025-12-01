@@ -187,7 +187,7 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
     logging.info(f"Using pos_weight = {pos_weight_value:.3f} (based on 65.6% success, 34.4% failure distribution)")
     logging.info("This balances the loss to account for class imbalance")
 
-    # Track metrics for plotting
+    # Track metrics for plotting - load existing history if resuming
     history = {
         'train_loss': [],
         'train_acc': [],
@@ -197,6 +197,18 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
         'val_avg_precision': [],
         'learning_rate': []
     }
+
+    # Load existing history if resuming training
+    history_path = os.path.join(model_dir, 'training_history.json')
+    if restore_file is not None and os.path.exists(history_path):
+        import json
+        with open(history_path, 'r') as f:
+            existing_history = json.load(f)
+        # Only use history up to start_epoch (in case of multiple resumes)
+        for key in history.keys():
+            if key in existing_history:
+                history[key] = existing_history[key][:start_epoch]
+        logging.info(f"Loaded existing training history ({len(history['train_loss'])} epochs)")
 
     # Learning rate scheduler
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
@@ -239,13 +251,15 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
         history['val_avg_precision'].append(val_metrics['avg_precision'])
         history['learning_rate'].append(scheduler.get_last_lr()[0])
 
+        # Save history after each epoch (so progress isn't lost if interrupted)
+        history_path = os.path.join(model_dir, 'training_history.json')
+        utils.save_dict_to_json(history, history_path)
+
         # Update learning rate
         scheduler.step()
 
-    # Save training history
-    history_path = os.path.join(model_dir, 'training_history.json')
-    utils.save_dict_to_json(history, history_path)
-    logging.info(f"Saved training history to {history_path}")
+    # Final save of training history
+    logging.info(f"Saved training history to {history_path} ({len(history['train_loss'])} epochs)")
 
     # Plot training curves
     plot_training_curves(history, model_dir)
