@@ -242,41 +242,49 @@ class GraspDataset(Dataset):
     def _augment_point_cloud(self, points):
         """
         Apply data augmentation:
-        - Random rotation around vertical axis
+        - Random rotation around Z-axis
         - Random jittering (Gaussian noise)
         - Random point dropout
+
+        Returns:
+            points: augmented point cloud
+            rotation_matrix: 3x3 rotation matrix applied (or identity if no augmentation)
         """
+        # Generate random rotation around Z-axis (up axis)
+        angle = np.random.uniform(0, 2 * np.pi)
+        cos_a = np.cos(angle)
+        sin_a = np.sin(angle)
+        rotation_matrix = np.array([
+            [cos_a, -sin_a, 0],
+            [sin_a,  cos_a, 0],
+            [0,      0,     1]
+        ], dtype=np.float32)
+
         if not self.augment:
-            return points
-        
-        # Random rotation around z-axis
-        theta = np.random.uniform(0, 2 * np.pi)
-        rot_matrix = np.array([
-            [np.cos(theta), -np.sin(theta), 0],
-            [np.sin(theta), np.cos(theta), 0],
-            [0, 0, 1]
-        ])
-        points = points @ rot_matrix.T
-        
+            return points, np.eye(3, dtype=np.float32)
+
+        # Apply rotation
+        points = points @ rotation_matrix.T
+
         # Add Gaussian noise
         noise = np.random.normal(0, 0.02, points.shape)
         points = points + noise
-        
+
         # Random dropout
         dropout_rate = np.random.uniform(0.05, 0.10)
         keep_indices = np.random.choice(
-            len(points), 
-            int(len(points) * (1 - dropout_rate)), 
+            len(points),
+            int(len(points) * (1 - dropout_rate)),
             replace=False
         )
         points = points[keep_indices]
-        
+
         if len(points) < self.num_points:
             padding_size = self.num_points - len(points)
             padding = points[np.random.choice(len(points), padding_size)]
             points = np.vstack([points, padding])
-        
-        return points
+
+        return points, rotation_matrix
     
     def __len__(self):
         return len(self.samples)
@@ -287,32 +295,60 @@ class GraspDataset(Dataset):
 
         Returns:
             dict with:
-                - points: (num_points, 3) point cloud
+                - points: (num_points, 3) point cloud (normalized to [-1,1])
                 - grasp: (13,) grasp parameters [position(3), rotation_flat(9), width(1)]
+                         Position normalized to [-1,1], width kept in meters
                 - label: scalar binary label
         """
         mesh_path, grasp_data, label = self.samples[idx]
 
+        # Variables to store normalization parameters
+        centroid = None
+        max_dist = None
+
         # Load point cloud (either pre-computed or from mesh)
         try:
             if self.use_precomputed:
-                # Load pre-computed point cloud (FAST!)
+                # Load pre-computed point cloud with normalization params (FAST!)
                 mesh_path_obj = Path(mesh_path)
                 rel_path = mesh_path_obj.relative_to(self.data_path)
-                pc_path = self.precomputed_dir / rel_path.with_suffix('.npy')
+                pc_path = self.precomputed_dir / rel_path.with_suffix('.npz')
 
                 if pc_path.exists():
-                    points = np.load(pc_path)
+                    # Load npz file with points, centroid, and max_dist
+                    data = np.load(pc_path)
+                    points = data['points']
+                    centroid = data['centroid']
+                    max_dist = data['max_dist']
                 else:
-                    # Fallback to loading mesh if pre-computed not found
-                    mesh = trimesh.load(mesh_path, force='mesh')
-                    points = self._sample_point_cloud(mesh)
-                    points = self._normalize_point_cloud(points)
+                    # Try old .npy format (backward compatibility)
+                    pc_path_old = self.precomputed_dir / rel_path.with_suffix('.npy')
+                    if pc_path_old.exists():
+                        points = np.load(pc_path_old)
+                        # No normalization params available - grasps won't be normalized
+                        print(f"Warning: Using old .npy format without normalization params for {mesh_path}")
+                    else:
+                        # Fallback to loading mesh if pre-computed not found
+                        mesh = trimesh.load(mesh_path, force='mesh')
+                        sampled_points = self._sample_point_cloud(mesh)
+                        centroid = np.mean(sampled_points, axis=0)
+                        centered = sampled_points - centroid
+                        max_dist = np.max(np.abs(centered))
+                        if max_dist > 0:
+                            points = centered / max_dist
+                        else:
+                            points = centered
             else:
                 # Load from mesh (SLOW - only for backward compatibility)
                 mesh = trimesh.load(mesh_path, force='mesh')
-                points = self._sample_point_cloud(mesh)
-                points = self._normalize_point_cloud(points)
+                sampled_points = self._sample_point_cloud(mesh)
+                centroid = np.mean(sampled_points, axis=0)
+                centered = sampled_points - centroid
+                max_dist = np.max(np.abs(centered))
+                if max_dist > 0:
+                    points = centered / max_dist
+                else:
+                    points = centered
 
         except Exception as e:
             print(f"Error loading point cloud from {mesh_path}: {e}")
@@ -324,20 +360,29 @@ class GraspDataset(Dataset):
                 'label': torch.tensor(label, dtype=torch.float32)
             }
 
-        # Apply augmentation (still fast - just rotation/noise)
-        if self.augment:
-            points = self._augment_point_cloud(points)
-
+        # Normalize grasp position using same centroid and max_dist as point cloud
         position = grasp_data['position'].astype(np.float32)
+        if centroid is not None and max_dist is not None and max_dist > 0:
+            # Normalize position to [-1, 1] using same params as point cloud
+            position = (position - centroid) / max_dist
+
         rotation = grasp_data['rotation'].astype(np.float32)
-        width = np.array([grasp_data['width']], dtype=np.float32)
+        width = np.array([grasp_data['width']], dtype=np.float32)  # Keep width in meters
+
+        # Apply augmentation (rotation/noise) and get rotation matrix
+        points, rotation_matrix = self._augment_point_cloud(points)
+
+        # Apply same rotation to grasp position and orientation
+        position = rotation_matrix @ position
+        rotation = rotation_matrix @ rotation  # Rotate the 3x3 rotation matrix
 
         grasp = np.concatenate([position, rotation.flatten(), width])
 
         return {
             'points': torch.from_numpy(points.astype(np.float32)),
             'grasp': torch.from_numpy(grasp),
-            'label': torch.tensor(label, dtype=torch.float32)
+            'label': torch.tensor(label, dtype=torch.float32),
+            'max_dist': torch.tensor(max_dist if max_dist is not None else 0.05, dtype=torch.float32)  # For visualization
         }
 
 
