@@ -1,0 +1,8 @@
+2025-11-30 08:48:54,650:INFO: Creating the dataset...
+2025-11-30 08:48:58,273:INFO: - done.
+2025-11-30 08:48:58,448:INFO: Using grasp-aware attention with sigma=0.15
+2025-11-30 08:48:58,448:INFO: Starting evaluation from best
+2025-11-30 08:48:58,468:INFO: Using pos_weight = 0.524 (same as training)
+2025-11-30 08:48:58,468:INFO: Note: pos_weight only affects loss calculation, not accuracy/predictions
+2025-11-30 08:49:09,829:INFO: - Test metrics: accuracy: 0.735 ; loss: 0.380 ; roc_auc: 0.804 ; avg_precision: 0.872
+2025-11-30 08:49:10,822:INFO: - Saved curves to experiments/grasp_attention
