@@ -335,16 +335,19 @@ if __name__ == '__main__':
     logging.info("- done.")
 
     # Define the model and optimizer
-    # Always uses grasp-aware attention (configurable via attention_sigma in params.json)
+    # Grasp-aware attention settings (configurable via params.json)
     attention_sigma = getattr(params, 'attention_sigma', 0.05)
+    pooling_ratio = getattr(params, 'pooling_ratio', 0.5)
     use_grasp_centered_coords = getattr(params, 'use_grasp_centered_coords', False)
 
     model = net.GraspSuccessPredictor(
         attention_sigma=attention_sigma,
+        pooling_ratio=pooling_ratio,
         use_grasp_centered_coords=use_grasp_centered_coords
     ).to(params.device)
 
     logging.info(f"Using grasp-aware attention with sigma={attention_sigma}")
+    logging.info(f"Using pooling_ratio={pooling_ratio} ({(1-pooling_ratio):.0%} max + {pooling_ratio:.0%} weighted)")
     logging.info(f"Using grasp-centered coordinates: {use_grasp_centered_coords}")
     
     optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)

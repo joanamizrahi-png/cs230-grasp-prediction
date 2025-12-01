@@ -19,21 +19,32 @@ class PointNetEncoder(nn.Module):
     Supports optional per-point weights (e.g. grasp-aware attention):
     - Always computes a global max-pooled feature.
     - If weights are provided, also computes a weighted average feature
-      and adds it to the max feature.
+      and combines it with max feature using pooling_ratio.
     """
-    
-    def __init__(self, input_dim=3, output_dim=1024):
+
+    def __init__(self, input_dim=3, output_dim=1024, pooling_ratio=0.5):
+        """
+        Args:
+            input_dim: dimension of input points (3 for xyz)
+            output_dim: dimension of output global feature
+            pooling_ratio: weight for attention pooling vs max pooling
+                          0.0 = only max pooling (baseline)
+                          0.5 = balanced (default)
+                          1.0 = only weighted attention pooling
+        """
         super(PointNetEncoder, self).__init__()
-        
+
+        self.pooling_ratio = pooling_ratio
+
         # Shared MLP layers (applied to each point independently)
         self.conv1 = nn.Conv1d(input_dim, 64, 1)
         self.conv2 = nn.Conv1d(64, 128, 1)
         self.conv3 = nn.Conv1d(128, output_dim, 1)
-        
+
         self.bn1 = nn.BatchNorm1d(64)
         self.bn2 = nn.BatchNorm1d(128)
         self.bn3 = nn.BatchNorm1d(output_dim)
-    
+
     def forward(self, x, weights=None):
         """
         Args:
@@ -45,15 +56,15 @@ class PointNetEncoder(nn.Module):
         """
         # Transpose for conv1d: (batch, channels, num_points)
         x = x.transpose(2, 1)
-        
+
         # Shared MLPs
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
-        
+
         # Global max pooling (original PointNet)
         x_max = torch.max(x, 2)[0]
-        
+
         if weights is not None:
             # Normalize weights across points
             # weights: (B, N)
@@ -63,12 +74,13 @@ class PointNetEncoder(nn.Module):
             # Weighted average pooling (grasp-aware local feature)
             x_weighted = (x * w).sum(dim=2)  # (B, output_dim)
 
-            # Combine global and local features with balanced weighting
-            # This keeps the same magnitude as baseline (just max pooling)
-            x = 0.5 * x_max + 0.5 * x_weighted
+            # Combine global and local features using pooling_ratio
+            # pooling_ratio=0.5 means 0.5*max + 0.5*weighted (balanced)
+            # pooling_ratio=0.7 means 0.3*max + 0.7*weighted (favor attention)
+            x = (1 - self.pooling_ratio) * x_max + self.pooling_ratio * x_weighted
         else:
             x = x_max
-        
+
         return x
 
 
@@ -81,7 +93,7 @@ class GraspSuccessPredictor(nn.Module):
     - Expresses points in a grasp-centered frame.
     - Weights points by a Gaussian of their distance to the grasp center.
     """
-    
+
     def __init__(
         self,
         point_dim=3,
@@ -89,25 +101,32 @@ class GraspSuccessPredictor(nn.Module):
         hidden_dim=512,
         use_grasp_attention=True,
         attention_sigma=0.05,
+        pooling_ratio=0.5,
         use_grasp_centered_coords=False,
     ):
         super(GraspSuccessPredictor, self).__init__()
 
-        # Point cloud encoder
-        self.point_encoder = PointNetEncoder(input_dim=point_dim, output_dim=1024)
+        # Point cloud encoder with configurable pooling ratio
+        self.point_encoder = PointNetEncoder(
+            input_dim=point_dim,
+            output_dim=1024,
+            pooling_ratio=pooling_ratio
+        )
 
         # Grasp-aware attention settings
         self.use_grasp_attention = use_grasp_attention
         # bandwidth of distance weighting (same units as your point cloud)
         self.attention_sigma = attention_sigma
+        # pooling ratio between max and weighted attention
+        self.pooling_ratio = pooling_ratio
         # whether to use grasp-centered coordinates (may lose global context)
         self.use_grasp_centered_coords = use_grasp_centered_coords
-        
+
         # Fully connected layers for combining features
         self.fc1 = nn.Linear(1024 + grasp_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, 256)
         self.fc3 = nn.Linear(256, 1)
-        
+
         self.bn1 = nn.BatchNorm1d(hidden_dim)
         self.bn2 = nn.BatchNorm1d(256)
         
