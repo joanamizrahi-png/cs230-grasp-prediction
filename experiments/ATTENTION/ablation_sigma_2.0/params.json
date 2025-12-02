@@ -1,0 +1,12 @@
+{
+    "learning_rate": 0.001,
+    "batch_size": 128,
+    "num_epochs": 50,
+    "num_points": 1024,
+    "num_workers": 4,
+    "save_summary_steps": 10,
+    "split_by": "object",
+    "max_grasps_per_object": 100,
+    "attention_sigma": 2.0,
+    "pooling_ratio": 0.5
+}
