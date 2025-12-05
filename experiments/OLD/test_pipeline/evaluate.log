@@ -1,6 +1,0 @@
-2025-11-10 09:53:44,746:INFO: Creating the dataset...
-2025-11-10 09:53:44,812:INFO: - done.
-2025-11-10 09:53:44,847:INFO: Starting evaluation from best
-2025-11-10 09:54:05,571:INFO: - Test metrics: accuracy: 0.754 ; loss: 1.559 ; roc_auc: 0.645 ; avg_precision: 0.841
-2025-11-10 09:54:08,449:INFO: - Saved curves to experiments/test_pipeline
-2025-11-26 18:52:59,813:INFO: Creating the dataset...

@@ -100,7 +100,7 @@ class GraspSuccessPredictor(nn.Module):
         grasp_dim=13,
         hidden_dim=512,
         use_grasp_attention=True,
-        attention_sigma=0.05,
+        attention_sigma=1.0,
         pooling_ratio=0.5,
         use_grasp_centered_coords=False,
     ):

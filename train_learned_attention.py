@@ -260,16 +260,19 @@ if __name__ == '__main__':
     # Learned attention settings
     attention_dim = getattr(params, 'attention_dim', 64)
     pooling_ratio = getattr(params, 'pooling_ratio', 0.5)
+    dropout = getattr(params, 'dropout', 0.3)
+    weight_decay = getattr(params, 'weight_decay', 0.0)
 
     model = net.LearnedAttentionPredictor(
         attention_dim=attention_dim,
         pooling_ratio=pooling_ratio,
+        dropout=dropout,
     ).to(params.device)
 
     logging.info(f"Using LEARNED attention with attention_dim={attention_dim}")
-    logging.info(f"Using pooling_ratio={pooling_ratio}")
+    logging.info(f"Using pooling_ratio={pooling_ratio}, dropout={dropout}, weight_decay={weight_decay}")
 
-    optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=params.learning_rate, weight_decay=weight_decay)
 
     loss_fn = net.loss_fn
     metrics = net.metrics

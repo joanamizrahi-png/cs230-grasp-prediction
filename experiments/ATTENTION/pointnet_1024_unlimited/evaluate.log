@@ -1,8 +1,0 @@
-2025-12-01 17:13:33,976:INFO: Creating the dataset...
-2025-12-01 17:13:43,032:INFO: - done.
-2025-12-01 17:13:43,203:INFO: Using grasp-aware attention with sigma=0.15
-2025-12-01 17:13:43,204:INFO: Starting evaluation from best
-2025-12-01 17:13:43,223:INFO: Using pos_weight = 0.524 (same as training)
-2025-12-01 17:13:43,223:INFO: Note: pos_weight only affects loss calculation, not accuracy/predictions
-2025-12-01 17:14:23,651:INFO: - Test metrics: accuracy: 0.761 ; loss: 0.366 ; roc_auc: 0.831 ; avg_precision: 0.890
-2025-12-01 17:14:24,637:INFO: - Saved curves to experiments/ATTENTION/pointnet_1024_unlimited

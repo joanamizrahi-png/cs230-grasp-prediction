@@ -1,7 +1,0 @@
-2025-11-27 20:06:23,879:INFO: Creating the dataset...
-2025-11-27 20:06:32,763:INFO: - done.
-2025-11-27 20:06:33,022:INFO: Starting evaluation from best
-2025-11-27 20:06:33,078:INFO: Using pos_weight = 0.524 (same as training)
-2025-11-27 20:06:33,078:INFO: Note: pos_weight only affects loss calculation, not accuracy/predictions
-2025-11-27 20:36:59,101:INFO: - Test metrics: accuracy: 0.672 ; loss: 0.418 ; roc_auc: 0.744 ; avg_precision: 0.818
-2025-11-27 20:37:00,004:INFO: - Saved curves to experiments/quick_train

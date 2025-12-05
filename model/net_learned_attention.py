@@ -108,6 +108,7 @@ class LearnedAttentionPredictor(nn.Module):
         hidden_dim=512,
         attention_dim=64,
         pooling_ratio=0.5,
+        dropout=0.3,
     ):
         super(LearnedAttentionPredictor, self).__init__()
 
@@ -129,7 +130,7 @@ class LearnedAttentionPredictor(nn.Module):
         self.bn1 = nn.BatchNorm1d(hidden_dim)
         self.bn2 = nn.BatchNorm1d(256)
 
-        self.dropout = nn.Dropout(0.3)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, points, grasp, return_attention=False):
         """

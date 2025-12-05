@@ -9,20 +9,21 @@ venv/
 ENV/
 env/
 
-# Data
+# Data (large files - download separately)
 data/
+data_filtered/
 *.h5
 *.obj
 *.tar.gz
 *.zip
+meshes.tar.gz
 
-# Experiments - exclude diffusion model experiments
-experiments/DIFFUSION/
-experiments/diffusion_model/
+# Experiments (trained models, logs)
+experiments/
 
-# Keep experiment results (logs, checkpoints, configs) for other experiments
-# But track them in git
-experiments/*/tensorboard/
+# Report (separate submission)
+report/
+figures/
 
 # IDE
 .vscode/
@@ -39,16 +40,15 @@ Thumbs.db
 .ipynb_checkpoints/
 *.ipynb
 
-# Misc
+# Images
 *.png
 *.jpg
 *.pdf
-!figures/*.png
 
-# Local-only directories and files
+# Local-only / temporary files
 docs/
-scripts/cleanup*.sh
-scripts/organize*.sh
-scripts/reorganize*.sh
-diffusion/
+*.docx
+DATASET.md
+RELATED_WORKS.md
+SETUP.md
 setup.sh

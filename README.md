@@ -2,30 +2,33 @@
 
 CS230 Deep Learning Project - Joana Mizrahi, Loïc Poisson, Abigail Aleshire
 
-Predicting grasp success directly from 3D point clouds using PointNet architecture.
+Predicting grasp success directly from 3D point clouds using deep learning architectures including PointNet, PointNet++, and attention-enhanced variants.
 
 ## Project Structure
 
 ```
 grasp-prediction/
-├── data/                          # ACRONYM dataset (not in repo)
-│   ├── meshes/                    # 3D object meshes
-│   └── grasps/                    # Grasp annotations (.h5 files)
-├── data_filtered/                 # Subset for testing (not in repo)
 ├── model/
-│   ├── net.py                     # PointNet model architecture
-│   ├── data_loader.py             # GraspDataset class
-├── experiments/
-│   └── base_model/
-│       └── params.json            # Hyperparameters
-├── train.py                       # Training script
-├── evaluate.py                    # Evaluation script
+│   ├── net.py                     # PointNet baseline model
+│   ├── net_pointnet2.py           # PointNet++ model
+│   ├── net_grasp_attention.py     # Gaussian attention model
+│   ├── net_learned_attention.py   # Learned attention model
+│   └── data_loader.py             # Dataset and data loading
+├── scripts/
+│   ├── check_dataset.py           # Dataset verification
+│   ├── filter_dataset.py          # Create filtered subset
+│   └── organize_shapenet.py       # ShapeNet data organization
+├── train.py                       # Train PointNet baseline
+├── train_pointnet2.py             # Train PointNet++
+├── train_attention.py             # Train Gaussian attention model
+├── train_learned_attention.py     # Train learned attention model
+├── evaluate.py                    # Evaluate PointNet baseline
+├── evaluate_pointnet2.py          # Evaluate PointNet++
+├── evaluate_attention.py          # Evaluate attention models
+├── precompute_point_clouds.py     # Precompute point clouds from meshes
 ├── utils.py                       # Helper functions
-├── check_dataset.py               # Dataset verification
-├── filter_dataset.py              # Create filtered subset
 ├── requirements.txt               # Dependencies
-├── README.md                      # This file
-└── DATASET.md                     # Dataset download instructions
+└── README.md                      # This file
 ```
 
 ## Setup
@@ -33,7 +36,7 @@ grasp-prediction/
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/joanamizrahi-png/cs230-grasp-prediction.git
 cd grasp-prediction
 ```
 
@@ -52,20 +55,11 @@ pip install -r requirements.txt
 
 ### 4. Download ACRONYM dataset
 
-**Option A: Sample data (for quick testing)**
-```bash
-git clone https://github.com/NVlabs/acronym.git temp_acronym
-cp -r temp_acronym/data/examples/* data/
-rm -rf temp_acronym
-```
+Download the full dataset from [ACRONYM GitHub](https://github.com/NVlabs/acronym#downloads):
+- `acronym.tar.gz` (1.6 GB) - grasp annotations
+- ShapeNet meshes (51 GB) - requires registration at shapenet.org
 
-**Option B: Full dataset**
-
-1. Download the full dataset from [ACRONYM GitHub](https://github.com/NVlabs/acronym#downloads):
-   - `acronym.tar.gz` (1.6 GB) - grasp annotations
-   - ShapeNet meshes (51 GB) - requires registration at shapenet.org
-
-2. Extract to the `data/` directory:
+Extract to the `data/` directory:
 ```bash
 tar -xzf acronym.tar.gz
 # Organize so you have:
@@ -73,136 +67,97 @@ tar -xzf acronym.tar.gz
 # data/meshes/**/*.obj
 ```
 
+### 5. Precompute point clouds
+
+```bash
+python precompute_point_clouds.py --data_dir data --num_points 1024
+```
+
 ## Usage
 
 ### Training
 
-Train the baseline PointNet model:
-
+**PointNet baseline:**
 ```bash
-python train.py --data_dir data --model_dir experiments/base_model
+python train.py --data_dir data --model_dir experiments/pointnet
 ```
 
-Training logs and checkpoints will be saved to `experiments/base_model/`.
+**PointNet++:**
+```bash
+python train_pointnet2.py --data_dir data --model_dir experiments/pointnet2
+```
 
-Training generates:
-- `best.pth.tar` - Best model checkpoint
-- `training_curves.png` - Loss and accuracy plots
-- `metrics_curves.png` - ROC-AUC and AP plots
-- `train.log` - Full training log
+**Gaussian attention:**
+```bash
+python train_attention.py --data_dir data --model_dir experiments/attention
+```
+
+**Learned attention:**
+```bash
+python train_learned_attention.py --data_dir data --model_dir experiments/learned_attention
+```
 
 ### Evaluation
 
-Evaluate on test set:
-
 ```bash
-python evaluate.py --data_dir data --model_dir experiments/base_model --restore_file best
+python evaluate.py --data_dir data --model_dir experiments/pointnet --restore_file best
+python evaluate_pointnet2.py --data_dir data --model_dir experiments/pointnet2 --restore_file best
+python evaluate_attention.py --data_dir data --model_dir experiments/attention --restore_file best
 ```
 
-This will:
-- Load the best model checkpoint
-- Evaluate on test set
-- Generate ROC and PR curves
-- Save metrics to JSON
+### Hyperparameters
 
-### Hyperparameter Tuning
-
-Edit `experiments/base_model/params.json`:
+Edit `experiments/<model>/params.json`:
 
 ```json
 {
     "learning_rate": 0.001,
     "batch_size": 128,
     "num_epochs": 50,
-    "num_points": 2048,
+    "num_points": 1024,
     "num_workers": 4,
-    "save_summary_steps": 10,
-    "split_by": "object"
+    "split_by": "object",
+    "max_grasps_per_object": 50,
+    "attention_sigma": 1.0
 }
 ```
 
-Key parameters:
-- `num_points`: Number of points sampled from each mesh (512, 1024, 2048)
-- `batch_size`: Adjust based on GPU memory
-- `split_by`: "object" for cross-category testing, "grasp" for balanced splits
-- `num_workers`: Set to 0 on Colab, 4+ on clusters
+## Model Architectures
 
-## AWS Deployment
+### PointNet Baseline
+Global feature extraction from point clouds using shared MLPs and max pooling, concatenated with grasp parameters for binary classification.
 
-See [DATASET.md](DATASET.md) for dataset download instructions
+### PointNet++
+Hierarchical point cloud processing with set abstraction layers for multi-scale feature learning.
 
-**Quick start on AWS:**
-```bash
-# SSH into AWS
-ssh -i ~/.ssh/cs230-final-key.pem ec2-user@<your-aws-ip>
+### Gaussian Attention
+Spatial attention mechanism using Gaussian distance weighting centered on grasp position with learnable σ parameter.
 
-# Setup (first time only)
-git clone <your-repo-url> grasp-prediction
-cd grasp-prediction
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+### Learned Attention
+Query-key attention mechanism that learns to focus on task-relevant point cloud regions.
 
-# Run training
-python train.py --data_dir data --model_dir experiments/my_model
-```
-
-## Dataset Statistics (Full ACRONYM)
+## Dataset Statistics
 
 - **Objects**: 8,872 meshes from ShapeNet
 - **Categories**: 262 object categories
 - **Grasps**: ~17.7 million labeled grasp attempts
-- **Success rate**: ~15% (class imbalance)
-- **Split**: 183 train, 39 val, 40 test categories (for cross-category generalization)
-
-## Model Architecture
-
-### PointNet Baseline
-
-```
-To complete
-```
-
-### PointNet++
-
-```
-To add
-```
-
-### Attention mechanism
-
-```
-To add
-```
-
-### Ablation studies
-
-```
-To add
-```
-
-### Grasp planning
-
-```
-To add
-```
+- **Success rate**: ~15% (handled with weighted BCE loss)
+- **Split**: 183 train, 39 val, 40 test categories
 
 ## Metrics
 
-- **Average Precision (AP)**: Primary metric, accounts for class imbalance
-- **ROC-AUC**: Discriminative ability across all thresholds
-- **Accuracy**: Simple percentage correct (can be misleading with imbalance)
+- **Average Precision (AP)**: Primary metric for imbalanced classification
+- **ROC-AUC**: Discriminative ability across thresholds
+- **Precision/Recall**: Per-class performance
 
+## Team
 
-
-## Team Members
-
-- **Joana Mizrahi** - jmizrahi@stanford.edu
-- **Loïc Poisson** - lpoisson@stanford.edu  
-- **Abigail Aleshire** - abbya@stanford.edu
+- Joana Mizrahi - jmizrahi@stanford.edu
+- Loïc Poisson - lpoisson@stanford.edu
+- Abigail Aleshire - abbya@stanford.edu
 
 ## References
 
 1. [PointNet: Deep Learning on Point Sets](https://arxiv.org/abs/1612.00593)
-2. [ACRONYM: A Large-Scale Grasp Dataset](https://arxiv.org/abs/2011.09584)
-3. [CS230 Code Examples](https://github.com/cs230-stanford/cs230-code-examples)
+2. [PointNet++: Deep Hierarchical Feature Learning](https://arxiv.org/abs/1706.02413)
+3. [ACRONYM: A Large-Scale Grasp Dataset](https://arxiv.org/abs/2011.09584)
