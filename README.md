@@ -59,12 +59,20 @@ Download the full dataset from [ACRONYM GitHub](https://github.com/NVlabs/acrony
 - `acronym.tar.gz` (1.6 GB) - grasp annotations
 - ShapeNet meshes (51 GB) - requires registration at shapenet.org
 
-Extract to the `data/` directory:
+Extract grasps and organize meshes:
 ```bash
-tar -xzf acronym.tar.gz
-# Organize so you have:
-# data/grasps/*.h5
-# data/meshes/**/*.obj
+# Extract ACRONYM grasps
+tar -xzf acronym.tar.gz -C data/
+
+# ShapeNet downloads as flat files, but ACRONYM expects meshes/Category/hash.obj
+# Use the organize script to restructure:
+python scripts/organize_shapenet.py \
+    --grasp_dir data/grasps \
+    --shapenet_dir /path/to/ShapeNetSem/models-OBJ/models \
+    --output_dir data/meshes
+
+# (Optional) If you don't have all meshes, filter to matched pairs:
+python scripts/filter_dataset.py --data_dir data --output_dir data_filtered
 ```
 
 ### 5. Precompute point clouds
@@ -144,11 +152,18 @@ Query-key attention mechanism that learns to focus on task-relevant point cloud 
 - **Success rate**: ~35% (handled with weighted BCE loss)
 - **Split**: 183 train, 39 val, 40 test categories
 
-## Metrics
+## Results
 
-- **Average Precision (AP)**: Primary metric for imbalanced classification
-- **ROC-AUC**: Discriminative ability across thresholds
-- **Precision/Recall**: Per-class performance
+| Model | Accuracy | ROC-AUC | Avg Precision |
+|-------|----------|---------|---------------|
+| PointNet (baseline) | 72.9% | 0.795 | 0.864 |
+| PointNet++ | 72.4% | 0.768 | 0.841 |
+| Gaussian Attention (σ=1.0) | 73.2% | 0.803 | 0.871 |
+| Learned Attention | 73.4% | 0.804 | 0.871 |
+
+*Results on test set with 512 points per object.*
+
+**Best model** (learned attention, 2048 points, regularized): **74.1% accuracy**, **0.813 ROC-AUC**, **0.875 AP**
 
 ## Team
 
