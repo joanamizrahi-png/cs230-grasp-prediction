@@ -1,5 +1,5 @@
 """
-Train the model
+Train the baseline PointNet model.
 """
 
 import argparse
@@ -22,38 +22,21 @@ parser.add_argument('--data_dir', default='data',
 parser.add_argument('--model_dir', default='experiments/base_model',
                     help="Directory containing params.json")
 parser.add_argument('--restore_file', default=None,
-                    help="Optional, name of the file in --model_dir containing weights to reload before training")
+                    help="Optional, name of file to restore weights from")
 
 
 def train(model, optimizer, loss_fn, dataloader, metrics, params, pos_weight):
-    """Train the model on `num_steps` batches
-    
-    Args:
-        model: (torch.nn.Module) the neural network
-        optimizer: (torch.optim) optimizer for parameters of model
-        loss_fn: a function that takes batch_output and batch_labels and computes the loss for the batch
-        dataloader: (DataLoader) a torch.utils.data.DataLoader object that fetches training data
-        metrics: (dict) a dictionary of functions that compute a metric using the output and labels of each batch
-        params: (Params) hyperparameters
-        pos_weight: (torch.Tensor) weight for positive class in BCE loss
-    """
-
-    # Set model to training mode
+    """Train the model for one epoch."""
     model.train()
-
-    # Summary for current training loop and a running average object for loss
     summ = []
     loss_avg = utils.RunningAverage()
 
-    # Use tqdm for progress bar
     with tqdm(total=len(dataloader)) as t:
         for i, batch in enumerate(dataloader):
-            # Move to GPU if available
             points = batch['points'].to(params.device)
             grasp = batch['grasp'].to(params.device)
             labels = batch['label'].to(params.device)
 
-            # Compute model output and loss
             output = model(points, grasp)
             loss = loss_fn(output, labels, pos_weight)
 
@@ -62,112 +45,72 @@ def train(model, optimizer, loss_fn, dataloader, metrics, params, pos_weight):
             optimizer.step()
 
             if i % params.save_summary_steps == 0:
-                # Compute all metrics on this batch
                 summary_batch = {metric: metrics[metric](output, labels)
                                  for metric in metrics}
                 summary_batch['loss'] = loss.item()
                 summ.append(summary_batch)
 
-            # Update the average loss
             loss_avg.update(loss.item())
-
             t.set_postfix(loss='{:05.3f}'.format(loss_avg()))
             t.update()
 
-    # Compute mean of all metrics in summary
-    metrics_mean = {metric: np.mean([x[metric] for x in summ]) 
+    metrics_mean = {metric: np.mean([x[metric] for x in summ])
                     for metric in summ[0]}
     metrics_string = " ; ".join(f"{k}: {v:05.3f}" for k, v in metrics_mean.items())
     logging.info("- Train metrics: " + metrics_string)
-    
+
     return metrics_mean
 
 
 def evaluate(model, loss_fn, dataloader, metrics, params, pos_weight):
-    """Evaluate the model on `num_steps` batches.
-    
-    Args:
-        model: (torch.nn.Module) the neural network
-        loss_fn: a function that takes batch_output and batch_labels and computes the loss for the batch
-        dataloader: (DataLoader) a torch.utils.data.DataLoader object that fetches data
-        metrics: (dict) a dictionary of functions that compute a metric using the output and labels of each batch
-        params: (Params) hyperparameters
-        pos_weight: (torch.Tensor) weight for positive class in BCE loss
-    """
-
-    # Set model to evaluation mode
+    """Evaluate the model on the validation set."""
     model.eval()
-
-    # Summary for current eval loop
     summ = []
-    
-    # Collect all predictions and labels for computing metrics
     all_predictions = []
     all_labels = []
     all_logits = []
 
-    # Compute metrics over the dataset
     with torch.no_grad():
         for batch in dataloader:
-            # Move to GPU if available
             points = batch['points'].to(params.device)
             grasp = batch['grasp'].to(params.device)
             labels = batch['label'].to(params.device)
 
-            # Compute model output
             output = model(points, grasp)
             loss = loss_fn(output, labels, pos_weight)
 
-            # Compute all metrics on this batch
             summary_batch = {metric: metrics[metric](output, labels)
                              for metric in metrics}
             summary_batch['loss'] = loss.item()
             summ.append(summary_batch)
-            
-            # Store predictions for later metric computation
+
             probs = torch.sigmoid(output.squeeze())
             predictions = probs > 0.5
-            
+
             all_predictions.extend(predictions.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
             all_logits.extend(probs.cpu().numpy())
 
-    # Compute mean of all metrics in summary
     if len(summ) == 0:
-        logging.warning("- Eval: No data in dataloader, skipping evaluation")
+        logging.warning("- Eval: No data in dataloader")
         return {'loss': 0.0, 'accuracy': 0.0, 'roc_auc': 0.0, 'avg_precision': 0.0}
 
     metrics_mean = {metric: np.mean([x[metric] for x in summ])
                     for metric in summ[0]}
 
-    # Compute additional metrics using sklearn
     from sklearn.metrics import roc_auc_score, average_precision_score
-
     metrics_mean['roc_auc'] = roc_auc_score(all_labels, all_logits)
     metrics_mean['avg_precision'] = average_precision_score(all_labels, all_logits)
-    
+
     metrics_string = " ; ".join(f"{k}: {v:05.3f}" for k, v in metrics_mean.items())
     logging.info("- Eval metrics: " + metrics_string)
-    
+
     return metrics_mean
 
 
-def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_fn, metrics, params, model_dir,
-                       restore_file=None):
-    """Train the model and evaluate every epoch.
-    
-    Args:
-        model: (torch.nn.Module) the neural network
-        train_dataloader: (DataLoader) a torch.utils.data.DataLoader object that fetches training data
-        val_dataloader: (DataLoader) a torch.utils.data.DataLoader object that fetches validation data
-        optimizer: (torch.optim) optimizer for parameters of model
-        loss_fn: a function that takes batch_output and batch_labels and computes the loss for the batch
-        metrics: (dict) a dictionary of functions that compute a metric using the output and labels of each batch
-        params: (Params) hyperparameters
-        model_dir: (string) directory containing config, weights and log
-        restore_file: (string) optional- name of file to restore from (without its extension .pth.tar)
-    """
-    # Reload weights from restore_file if specified
+def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_fn,
+                       metrics, params, model_dir, restore_file=None):
+    """Train the model and evaluate every epoch."""
     start_epoch = 0
     if restore_file is not None:
         restore_path = os.path.join(model_dir, restore_file + '.pth.tar')
@@ -178,16 +121,12 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
 
     best_val_ap = 0.0
 
-    # Use pos_weight based on known data distribution
-    # From training logs: ~65.6% success, 34.4% failure
-    # pos_weight = failures / successes = 34.4 / 65.6 = 0.524
+    # pos_weight handles class imbalance (~65.6% success, 34.4% failure)
     pos_weight_value = 34.4 / 65.6
     pos_weight = torch.tensor([pos_weight_value]).to(params.device)
+    logging.info(f"Using pos_weight = {pos_weight_value:.3f} for class imbalance")
 
-    logging.info(f"Using pos_weight = {pos_weight_value:.3f} (based on 65.6% success, 34.4% failure distribution)")
-    logging.info("This balances the loss to account for class imbalance")
-
-    # Track metrics for plotting - load existing history if resuming
+    # Track metrics for plotting
     history = {
         'train_loss': [],
         'train_acc': [],
@@ -198,19 +137,17 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
         'learning_rate': []
     }
 
-    # Load existing history if resuming training
+    # Load existing history if resuming
     history_path = os.path.join(model_dir, 'training_history.json')
     if restore_file is not None and os.path.exists(history_path):
         import json
         with open(history_path, 'r') as f:
             existing_history = json.load(f)
-        # Only use history up to start_epoch (in case of multiple resumes)
         for key in history.keys():
             if key in existing_history:
                 history[key] = existing_history[key][:start_epoch]
-        logging.info(f"Loaded existing training history ({len(history['train_loss'])} epochs)")
+        logging.info(f"Loaded training history ({len(history['train_loss'])} epochs)")
 
-    # Learning rate scheduler
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
     for epoch in range(start_epoch, params.num_epochs):
@@ -222,27 +159,21 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
         val_ap = val_metrics['avg_precision']
         is_best = val_ap >= best_val_ap
 
-        # Save weights
         utils.save_checkpoint({'epoch': epoch + 1,
                                'state_dict': model.state_dict(),
                                'optim_dict': optimizer.state_dict()},
                               is_best=is_best,
                               checkpoint=model_dir)
 
-        # If best_eval, best_save_path
         if is_best:
             logging.info("- Found new best Average Precision")
             best_val_ap = val_ap
-
-            # Save best val metrics in a json file in the model directory
             best_json_path = os.path.join(model_dir, "metrics_val_best.json")
             utils.save_dict_to_json(val_metrics, best_json_path)
 
-        # Save latest val metrics in a json file in the model directory
         last_json_path = os.path.join(model_dir, "metrics_val_last.json")
         utils.save_dict_to_json(val_metrics, last_json_path)
 
-        # Save metrics to history for plotting
         history['train_loss'].append(train_metrics['loss'])
         history['train_acc'].append(train_metrics['accuracy'])
         history['val_loss'].append(val_metrics['loss'])
@@ -251,66 +182,55 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer, loss_
         history['val_avg_precision'].append(val_metrics['avg_precision'])
         history['learning_rate'].append(scheduler.get_last_lr()[0])
 
-        # Save history after each epoch (so progress isn't lost if interrupted)
         history_path = os.path.join(model_dir, 'training_history.json')
         utils.save_dict_to_json(history, history_path)
-
-        # Update learning rate
         scheduler.step()
 
-    # Final save of training history
-    logging.info(f"Saved training history to {history_path} ({len(history['train_loss'])} epochs)")
-
-    # Plot training curves
+    logging.info(f"Saved training history ({len(history['train_loss'])} epochs)")
     plot_training_curves(history, model_dir)
     logging.info(f"Saved training curves to {model_dir}")
 
 
 def plot_training_curves(history, model_dir):
-    """Plot training curves and save as PNG files."""
-
+    """Plot and save training curves."""
     epochs = range(1, len(history['train_loss']) + 1)
 
-    # Combined plot: Loss and Accuracy
+    # Loss and accuracy
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-    # Loss subplot
     ax1.plot(epochs, history['train_loss'], linewidth=2, label='Train', marker='o', markersize=4)
     ax1.plot(epochs, history['val_loss'], linewidth=2, label='Validation', marker='o', markersize=4)
-    ax1.set_xlabel('Epoch', fontsize=11)
-    ax1.set_ylabel('Loss', fontsize=11)
-    ax1.set_title('Training Loss', fontsize=13)
-    ax1.legend(fontsize=10)
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('Loss')
+    ax1.set_title('Training Loss')
+    ax1.legend()
     ax1.grid(True, alpha=0.3)
 
-    # Accuracy subplot
     ax2.plot(epochs, history['train_acc'], linewidth=2, label='Train', marker='o', markersize=4)
     ax2.plot(epochs, history['val_acc'], linewidth=2, label='Validation', marker='o', markersize=4)
-    ax2.set_xlabel('Epoch', fontsize=11)
-    ax2.set_ylabel('Accuracy', fontsize=11)
-    ax2.set_title('Training Accuracy', fontsize=13)
-    ax2.legend(fontsize=10)
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Accuracy')
+    ax2.set_title('Training Accuracy')
+    ax2.legend()
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
     plt.savefig(os.path.join(model_dir, 'training_curves.png'), dpi=300, bbox_inches='tight')
     plt.close()
 
-    # Metrics plot: ROC-AUC and Average Precision
+    # ROC-AUC and Average Precision
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-    # ROC-AUC
     ax1.plot(epochs, history['val_roc_auc'], linewidth=2, marker='o', markersize=4, color='green')
-    ax1.set_xlabel('Epoch', fontsize=11)
-    ax1.set_ylabel('ROC-AUC', fontsize=11)
-    ax1.set_title('Validation ROC-AUC', fontsize=13)
+    ax1.set_xlabel('Epoch')
+    ax1.set_ylabel('ROC-AUC')
+    ax1.set_title('Validation ROC-AUC')
     ax1.grid(True, alpha=0.3)
 
-    # Average Precision
     ax2.plot(epochs, history['val_avg_precision'], linewidth=2, marker='o', markersize=4, color='purple')
-    ax2.set_xlabel('Epoch', fontsize=11)
-    ax2.set_ylabel('Average Precision', fontsize=11)
-    ax2.set_title('Validation Average Precision', fontsize=13)
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Average Precision')
+    ax2.set_title('Validation Average Precision')
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -319,44 +239,32 @@ def plot_training_curves(history, model_dir):
 
 
 if __name__ == '__main__':
-
-    # Load the parameters from json file
     args = parser.parse_args()
     json_path = os.path.join(args.model_dir, 'params.json')
     assert os.path.isfile(json_path), f"No json configuration file found at {json_path}"
     params = utils.Params(json_path)
 
-    # Use GPU if available
     params.cuda = torch.cuda.is_available()
     params.device = torch.device('cuda' if params.cuda else 'cpu')
 
-    # Set the random seed for reproducible experiments
     torch.manual_seed(230)
     if params.cuda:
         torch.cuda.manual_seed(230)
 
-    # Set the logger
     utils.set_logger(os.path.join(args.model_dir, 'train.log'))
 
-    # Create the input data pipeline
     logging.info("Loading the datasets...")
-    
-    # Fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(['train', 'val'], args.data_dir, params)
     train_dl = dataloaders['train']
     val_dl = dataloaders['val']
-
     logging.info("- done.")
 
-    # Define the model and optimizer
     model = net.GraspSuccessPredictor().to(params.device)
     optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
 
-    # Fetch loss function and metrics
     loss_fn = net.loss_fn
     metrics = net.metrics
 
-    # Train the model
-    logging.info("Starting training for {} epoch(s)".format(params.num_epochs))
+    logging.info(f"Starting training for {params.num_epochs} epoch(s)")
     train_and_evaluate(model, train_dl, val_dl, optimizer, loss_fn, metrics, params,
                        args.model_dir, args.restore_file)

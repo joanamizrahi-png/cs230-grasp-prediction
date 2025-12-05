@@ -1,5 +1,5 @@
 """
-Evaluate the model on the test set
+Evaluate the PointNet++ model on the test set.
 """
 
 import argparse
@@ -18,19 +18,12 @@ import model.data_loader as data_loader
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', default='data', help="Directory containing the dataset")
 parser.add_argument('--model_dir', default='experiments/base_model', help="Directory containing params.json")
-parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir containing weights to load")
+parser.add_argument('--restore_file', default='best', help="Name of checkpoint file to load")
+
 
 def evaluate(model, loss_fn, dataloader, metrics, params, pos_weight):
-    """Evaluate the model on the test set.
-
-    Returns:
-        metrics_mean: (dict) average metrics
-        all_predictions: list of predictions
-        all_labels: list of ground truth labels
-        all_logits: list of predicted probabilities
-    """
+    """Evaluate the model and return metrics and predictions."""
     model.eval()
-
     summ = []
     all_predictions = []
     all_labels = []
@@ -70,9 +63,7 @@ def evaluate(model, loss_fn, dataloader, metrics, params, pos_weight):
 
 
 def plot_curves(all_labels, all_logits, metrics, model_dir):
-    """Plot ROC and PR curves"""
-
-    # ROC curve
+    """Plot and save ROC and PR curves."""
     fpr, tpr, _ = roc_curve(all_labels, all_logits)
 
     plt.figure(figsize=(8, 6))
@@ -87,7 +78,6 @@ def plot_curves(all_labels, all_logits, metrics, model_dir):
     plt.savefig(os.path.join(model_dir, 'roc_curve.png'), dpi=300)
     plt.close()
 
-    # PR curve
     precision, recall, _ = precision_recall_curve(all_labels, all_logits)
 
     plt.figure(figsize=(8, 6))
@@ -105,61 +95,45 @@ def plot_curves(all_labels, all_logits, metrics, model_dir):
 
 
 if __name__ == '__main__':
-
     args = parser.parse_args()
     json_path = os.path.join(args.model_dir, 'params.json')
     assert os.path.isfile(json_path), f"No json configuration file found at {json_path}"
     params = utils.Params(json_path)
 
-    # Use GPU if available
     params.cuda = torch.cuda.is_available()
     params.device = torch.device('cuda' if params.cuda else 'cpu')
 
-    # Set the random seed
     torch.manual_seed(230)
     if params.cuda:
         torch.cuda.manual_seed(230)
 
-    # Set the logger
     utils.set_logger(os.path.join(args.model_dir, 'evaluate.log'))
 
-    # Create the input data pipeline
     logging.info("Loading the datasets...")
-
-    # Fetch dataloader
     dataloaders = data_loader.fetch_dataloader(['test'], args.data_dir, params)
     test_dl = dataloaders['test']
-
     logging.info("- done.")
 
-    # Define the model
     model = PointNet2Grasp(normal_channel=False).to(params.device)
 
-    # Fetch loss function and metrics
     from model import net_pointnet2
     loss_fn = net_pointnet2.loss_fn
     metrics = net_pointnet2.metrics
 
-    # Use pos_weight based on known data distribution
+    # Same pos_weight as training for consistent loss
     pos_weight_value = 34.4 / 65.6
     pos_weight = torch.tensor([pos_weight_value]).to(params.device)
 
-    logging.info(f"Using pos_weight = {pos_weight_value:.3f} (same as training)")
-    logging.info("Note: pos_weight only affects loss calculation, not accuracy/predictions")
-
     logging.info(f"Starting evaluation from {args.restore_file}")
-
-    # Reload weights from the saved file
     utils.load_checkpoint(os.path.join(args.model_dir, args.restore_file + '.pth.tar'), model)
 
-    # Evaluate
-    test_metrics, all_predictions, all_labels, all_logits = evaluate(model, loss_fn, test_dl, metrics, params, pos_weight)
+    test_metrics, all_predictions, all_labels, all_logits = evaluate(
+        model, loss_fn, test_dl, metrics, params, pos_weight
+    )
 
-    # Save test metrics
     save_path = os.path.join(args.model_dir, f"metrics_test_{args.restore_file}.json")
     utils.save_dict_to_json(test_metrics, save_path)
 
-    # Plot curves
     plot_curves(all_labels, all_logits, test_metrics, args.model_dir)
 
     # Print confusion matrix
@@ -175,6 +149,8 @@ if __name__ == '__main__':
     print(f"False Positives (wrong successes):  {fp}")
     print(f"False Negatives (wrong failures):   {fn}")
     print(f"True Positives (correct successes): {tp}")
-    print(f"\nActual - Success: {np.sum(labels_binary)} ({np.mean(labels_binary)*100:.1f}%), Failure: {len(labels_binary)-np.sum(labels_binary)} ({(1-np.mean(labels_binary))*100:.1f}%)")
-    print(f"Predicted - Success: {np.sum(predictions_binary)} ({np.mean(predictions_binary)*100:.1f}%), Failure: {len(predictions_binary)-np.sum(predictions_binary)} ({(1-np.mean(predictions_binary))*100:.1f}%)")
+    print(f"\nActual - Success: {np.sum(labels_binary)} ({np.mean(labels_binary)*100:.1f}%), "
+          f"Failure: {len(labels_binary)-np.sum(labels_binary)} ({(1-np.mean(labels_binary))*100:.1f}%)")
+    print(f"Predicted - Success: {np.sum(predictions_binary)} ({np.mean(predictions_binary)*100:.1f}%), "
+          f"Failure: {len(predictions_binary)-np.sum(predictions_binary)} ({(1-np.mean(predictions_binary))*100:.1f}%)")
     print("="*60)
