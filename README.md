@@ -141,7 +141,7 @@ Query-key attention mechanism that learns to focus on task-relevant point cloud 
 - **Objects**: 8,872 meshes from ShapeNet
 - **Categories**: 262 object categories
 - **Grasps**: ~17.7 million labeled grasp attempts
-- **Success rate**: ~15% (handled with weighted BCE loss)
+- **Success rate**: ~35% (handled with weighted BCE loss)
 - **Split**: 183 train, 39 val, 40 test categories
 
 ## Metrics
